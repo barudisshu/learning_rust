@@ -172,3 +172,108 @@ x.pop();
 for i in 0..x.len() {print!("{} ", x[i]); }
 ```
 
+
+结果将输出"This line contains a sentence。"
+
+上述显示的`vector.push(item);`，实际上和`insert(vector.len(), item);`等价；`vector.pop()`和`vector.remove(vector.len() - 1)`等价。
+
+同样，基于类型安全，下面的写法是错误的。
+
+```rust
+let mut _x = vec!["This", "is", "a", "sentence"];
+_x.insert("line", 1);
+```
+
+## Empty Arrays and Vectors
+
+Rust中不支持没有预先定义的类型操作，假如有一个函数`f`接收两个参数,
+
+```rust
+f(["help", "debug"], vec![0, 4, 15]);
+```
+
+当传递空array和vector时，编译器将报错，因为它不能决定数组或向量的类型。那怎么定义一个空数组和向量。
+
+```rust
+let _a = [];
+```
+
+这样写编译器会报"type annotations needed"和 "cannot infer type."
+
+但是这样写却是可以的
+
+```rust
+let _a = [""; 0];
+```
+
+类型地，向量
+
+```rust
+let _a = vec![true; 0];
+let _b = vec![false; 0];
+```
+
+因此，我们的函数调用可以表示为这样：
+
+```rust
+f([""; 0], vec![0; 0]);
+```
+
+
+## Debug Print
+
+如何打印数组和向量呢？因为`print`和`println`是个宏调用，它可以接收各种类型地输出。然而，对于数组或向量却不适用：
+
+```rust
+print!("{} {}", [1, 2, 3], vec![4, 5]);
+```
+
+因为没有定义适当的输出格式，因此要改为：
+
+```rust
+print!("{:?} {:?}", [1, 2, 3], vec![4, 5]);
+```
+
+将会输出： "[1, 2, 3] [4, 5]"。
+
+`:?` 表示的是`print`(`println`)宏将生成一个debug format的响应数据。 因此不管是任何变量，你都可以用`{:?}`处理。
+
+
+## Copying Arrays and Vectors
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
