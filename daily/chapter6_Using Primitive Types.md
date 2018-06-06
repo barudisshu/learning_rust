@@ -104,7 +104,7 @@ print!("{} {} {} {}", a, b, c, d);
 和C语言类似，Rust中有Unsigned 整数类型。
 
 ```rust
-let a: u8 - 5;
+let a: u8 = 5;
 let b: u16 = 5;
 let c: u32 = 5;
 let d: u64 = 5;
