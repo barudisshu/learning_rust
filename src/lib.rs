@@ -34,7 +34,7 @@
 //! 找规律 😂
 //!
 fn finance(n: u64) -> u64 {
-    unimplemented!()
+    n * (n + 1) * (n + 2) / 2
 }
 
 fn testequal(n: u64, exp: u64) -> () {
