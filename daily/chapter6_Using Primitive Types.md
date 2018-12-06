@@ -254,6 +254,55 @@ print!("{} {}", i, j);
 
 ## Floating-Point Numberic Types
 
+Rust中仅有两种浮点类型
+
+```rust
+let a: f64 = 4.6;
+let b: f32 = 3.91;
+println!("{} {}", a, b);
+```
+
+`f64`是64位浮点数，`f32`是32位浮点数。“f”就是“floating-point”。该类型对应C语言的“double”和“float”类型。
+
+到目前为止，Rust已没有更多数字类型了。
+
+下面看看这段代码：
+
+```rust
+let a = 4.6;
+let mut _b: f32 = 3.91e5;
+_b = a;
+```
+
+前面说过，Rust会进行类型推断，“a”的类型推断为`f32`。所以这段代码是有效的。
+
+Rust中，默认的浮点类型是`f64`，所以，如果没有最后一段代码，“a”的类型是`f64`。
+
+## Explicit Conversions
+
+Rust每次编译都提供类型检查，要在不同类型间处理计算，可以使用`as`关键字显式转换。
+
+```rust
+let a: i16 = 12;
+let b: u32 = 4;
+let c: f32 = 3.7;
+print!("{}", a as i8 + b as i8 + c as i8);
+```
+
+输出结果是“19”。对于浮点值 3.7，小数点部分会被舍弃计算。
+
+下面代码中，由于显式转换超出了数值范围，数值发生溢出。
+
+```rust
+let a = 500 as i8;
+let b = 100_000 as u16;
+let c = 10_000_000_000 as u32;
+print!("{} {} {}", a, b, c);
+```
+
+结果将打印 "-12 34464 1410065408"。
+
+## Type Suffixes of Numberic Literals
 
 
 
