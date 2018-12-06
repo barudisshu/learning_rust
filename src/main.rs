@@ -1,8 +1,10 @@
 
 
 fn main() {
-    let a = 500 as i8;
-    let b = 100_000 as u16;
-    let c = 10_000_000_000 as u32;
-    print!("{} {} {}", a, b, c);
+    let _a: i16 = -150;
+    let _b = -150 as i16;
+    let _c = -150 + _b - _b;
+    let _d = -150i16;
+    let _e = -150_i16;
+    let _f = 5__u32;
 }

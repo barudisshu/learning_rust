@@ -304,11 +304,53 @@ print!("{} {} {}", a, b, c);
 
 ## Type Suffixes of Numberic Literals
 
+Rust中声明一个数字变量有几种方式：
 
+```rust
+let _a: i16 = -150;
+let _b = -150 as i16;
+let _c = -150 + _b = _b;
+let _d = -150i16;
+```
 
+除了上面说到的用`as`关键字，你也可以使用后缀的方式`-150i16`，为了代码清晰，你可以加下划线表示`-150_i16`或`5__u32`
 
+对于浮点数，`-4f32`或`0_f32`是32位浮点数。如果没有小数位，小数点可以省略。
 
+## All the Numberic Types
 
+下面例子列出了Rust所有数据类型：
+
+```rust
+let _: i8 = 127;
+let _: i16 = 32_767;
+let _: i32 = 2_147_483_647;
+let _: i64 = 9_223_372_036_854_775_807;
+let _: isize = 100; // The maximum value depends on the target architecture
+let _: u8 = 255;
+let _: u16 = 65_535;
+let _: u32 = 4_294_967_295;
+let _: u64 = 18_446_744_073_709_551_615;
+let _: usize = 100; // The maximum value depends on the target architecture
+let _: f32 = 1e38;
+let _: f64 = 1e308;
+```
+
+下面列出Rust的内建整型类型：
+
+|  Type  |    Occupied bytes    |        Minimum value        |        Maximum value        |
+|:------:|:--------------------:|:---------------------------:|:---------------------------:|
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
+|        |                      |                             |                             |
 
 
 
