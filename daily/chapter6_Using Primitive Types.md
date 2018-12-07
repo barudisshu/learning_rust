@@ -488,27 +488,20 @@ Rust的常量和C++的`const`对应。
 
 ## Discovering the Type of an Expression
 
+常常我们会碰到一个表达式，想知道该表达式是什么类型。
 
+你可以由类型推断得知，或从上下文环境，或从文档。但有一个答案就是编译器。
 
+比如我们想知道`4u32 / 3u32`的类型，在其它语言可能是浮点类型。
 
+编译器会直接告诉我们“mismatched types”， “expected bool, found u32”，这里直接指出了表达式的值是`u32`类型。
 
+但有时候，编译器的错误会相对模糊。
 
+```rust
+let _: bool = 4 / 3;
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+编译器会解析说“expected bool, found integral variable”， “expected type `bool` found type `{integer}`”。它没有告诉我们表达式是哪个具体类型，只说了是整型。
 
 

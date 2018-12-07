@@ -1,5 +1,3 @@
 fn main() {
-    let n = 20;
-    let n = 6;;
-    println!("{}", n);
+    let _: bool = 4u32 / 3u32;
 }
