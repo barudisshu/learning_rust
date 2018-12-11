@@ -1,5 +1,9 @@
 fn main() {
-    enum T {A, B, C, D};
-    let n: i32 = T::D as i32;
-    let e: T = T::B;
+    enum CardinalPoint { North, South, West, East };
+    let direction = CardinalPoint::South;
+    match direction {
+        CardinalPoint::North => print!("NORTH"),
+        _ => {},
+        CardinalPoint::South => print!("SOUTH"),
+    }
 }

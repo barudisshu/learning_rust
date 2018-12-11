@@ -87,7 +87,7 @@ match语句的行为是。
 
 注意每个手臂右边的必须是一个单一表达式。
 
-只要求表达式是个有效语句就可以了，并且带上分号。例如
+事实上，只要带上分号，任何表达式都能成为有效的语句。例如
 
 ```rust
 let a = 7.2;
@@ -99,9 +99,108 @@ true;
 
 上述这些代码是有效的，只是什么也没做。
 
+但是，有些语句并不是有效的表达式。例如，“let a = 3; ”、“fn empty() {}”，
+
+```rust
+match contin {
+	Continent::Europe => let a = 7;,
+	Continent::Asia => let a = 7,
+	Continent::Africa => f aaa() {},
+	Continent::America => print!("Am"),
+	Continent::Oceania => print!("O"),
+}
+```
+
+前面三个case会报错，因为 “=>”后面跟的不是有效的表达式。
+
+若果我们要执行多个表达式，可以使用语句块方式实现：
+
+```rust
+enum Continent {
+	Europe,
+	Asia,
+	Africa,
+	America,
+	Oceania,
+}
+let mut contin = Continent::Asia;
+match contin {
+	Continent::Europe => {
+		contin = Continent::Asia;
+		print!("E");
+	}
+	Continent::Asia => {
+		let a = 7;
+	}
+	Continent::Africa => print!("Af"),
+	Continent::America => print!("Am"),
+	Continent::Oceania => print!("O"),
+}
+```
+
+## Relational Operators and Enums
+
+枚举不能用“==”操作符作比较。实际上，下面程序是不合法的：
+
+```rust
+enum CardinalPoint { North, South, West, East };
+let direction = CardinalPoint::South;
+if direction == CardinalPoint::North { }
+```
+
+编译器报“binary operation `==` cannot be applied to type `main::CardinalPoint`”。因此，你应该用 match 语句。
+
+不仅是“==”操作符，其它二进制操作符都是错误的：
+
+```rust
+enum CardinalPoint { North, South, West, East };
+if CardinalPoint::South < CardinalPoint::North { }
+```
+
+## Handling All the Cases
+
+下面代码编译出错：
+
+```rust
+enum CardinalPoint { North, South, West, East };
+let direction = CardinalPoint::South;
+match direction {
+	CardinalPoint::North => print!("NORTH"),
+	CardinalPoint::South => print!("SOUTH"),
+}
+```
+
+会获得一个错误“non-exhaustive patterns: `West` and `East` not covered”。编译器会抱怨说，四个枚举值，仅两个被考虑了，另外两个West和East没有考虑进去。这是由于Rust要求显式处理所有的情况。
+
+要解决这个问题有两种做法，一是匹配所有的情况；
+
+```rust
+enum CardinalPoint { North, South, West, East };
+let direction = CardinalPoint::South;
+match direction {
+	CardinalPoint::North => print!("NORTH"),
+	CardinalPoint::South => print!("SOUTH"),
+	CardinalPoint::East => {},
+	CardinalPoint::West => {},
+}
+```
+
+二是使用下划线，做默认情况处理；
+
+```rust
+enum CardinalPoint { North, South, West, East };
+let direction = CardinalPoint::South;
+match direction {
+	CardinalPoint::North => print!("NORTH"),
+	CardinalPoint::South => print!("SOUTH"),
+	_ => {},
+}
+```
+
+注意，下划线语句会匹配任何值，所以要将它放在最后。
 
 
-
+## Using match with Numbers
 
 
 
