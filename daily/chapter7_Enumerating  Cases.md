@@ -202,7 +202,141 @@ match direction {
 
 ## Using match with Numbers
 
+match结构，除了可以用于枚举，也可以用于其他数据类型：
 
+```rust
+match "value" {
+	"val" => print!("value "),
+	_ => print!("other "),
+}
+match 3 {
+	3 => print!("three "),
+	4 => print!("four "),
+	5 => print!("five "),
+	_ => print!("other "),
+}
+match '.' {
+	':' => print!("colon "),
+	'.' => print!("point "),
+	_ => print!("other "),
+}
+```
+
+结果将输出：“other three point”。
+
+
+## Enumerations with Data
+
+Rust的枚举类型，并没有前面看到的这么简单：
+
+```rust
+enum Result {
+	Success(f64),
+	Failure(u16, char),
+	Uncertainty,
+}
+
+// let outcome = Result::Success(23.67);
+let outcome = Result::Failure(1200, 'X');
+
+match outcome {
+	Result::Success(value) => print!("Result: {}", value),
+	Result::Failure(error_code, module) => print!("Error n. {} in module {}", error_code, module),
+	Result::Uncertainty => {},
+}
+```
+
+结果将输出：“Error n. 1200 in module X”。
+
+若替换为注解行，结果将输出为“Result: 23.67”。
+
+对比于C语言，Rust的枚举类型包含枚举和组合的特性。
+
+```c
+#include <stdio.h>
+int main() {
+    enum eResult {
+        Success,
+        Failure,
+        Uncertainty
+    };
+    struct sResult {
+        enum eResult r;
+        union {
+            double value;
+            struct {
+                unsigned short error_code;
+                char module;
+            } s;
+        } u;
+    } outcome;
+
+/*
+outcome.r = Success;
+outcome.u.value = 23.67;
+*/
+outcome.r = Failure;
+outcome.u.s.error_code = 1200;
+outcome.u.s.module = 'X';
+
+switch (outcome.r) {
+	case Success:
+		printf("Result: %g", outcome.u.value);
+		break;
+	case Failure:
+		printf("Error n. %d in module %c",
+			   outcome.u.s.error_code,
+			   outcome.u.s.module);
+		break;
+	case Uncertainty:
+		break;
+	}
+return 0;
+}
+```
+
+在“match”语句中，模式匹配的参数，例如Result::Success(value)中的value，会被看做是该scope下的变量，以及该变量的类型，由这个手臂(arm)声明。
+
+当手臂(arm)满足case，这个变量的值就被初始化。例如value的值是23.67。并且用于手臂右边的作用范围。
+
+如果不需要这个变量，为避免编译告警，可以：
+
+```rust
+enum Result {
+	Success(f64),
+	Failure(u16, char),
+	Uncertainty,
+}
+
+let outcome = Result::Success(23.67);
+
+match outcome {
+	Result::Success(_) => print!("OK"),
+	Result::Failure(error_code, module) =>
+		print!("Error n. {} in module {}", error_code, module),
+	Result::Uncertainty => {},
+}
+```
+
+## "match" Expressions
+
+类似于“if”表达式，“match”也有表达式：
+
+```rust
+enum CardinalPoint { North, South, West, East };
+let direction = CardinalPoint::South;
+print!("{}", match direction {
+	CardinalPoint::North => 'N',
+	CardinalPoint::South => 'S',
+	_ => '*',
+});
+```
+
+结果会输出：“S.”。
+
+这里有个要求，就是手臂右边的值，必须类型是一样的。如果将第三个case改为“_ => {}”。会发生“match arms have incompatible types”。因为是一个match表达式，所以它只能有指定的一种类型。
+
+## Use of Guards in match Constructs
 
 
 

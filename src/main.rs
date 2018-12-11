@@ -1,9 +1,10 @@
 fn main() {
-    enum CardinalPoint { North, South, West, East };
-    let direction = CardinalPoint::South;
-    match direction {
-        CardinalPoint::North => print!("NORTH"),
-        _ => {},
-        CardinalPoint::South => print!("SOUTH"),
+    for n in -2..5 {
+        println!("{} is {}.", n, match n {
+            0 => "zero",
+            1 => "one",
+            _ if n < 0 => "negative",
+            _ => "plural",
+        });
     }
 }
