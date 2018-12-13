@@ -338,69 +338,15 @@ print!("{}", match direction {
 
 ## Use of Guards in match Constructs
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+假设我们要区分整数的类别：负数、0、1、正数：
+
+```rust
+for n in -2..5 {
+	println!("{} is {}.", n, match n {
+		0 => "zero",
+		1 => "one",
+		_ if n < 0 => "negative",
+		_ => "plural",
+	});
+}
+```
