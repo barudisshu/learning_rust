@@ -114,45 +114,127 @@ Rust中的结构体，是有`struct`关键字声明的一个block，它声明了
 
 要声明一个该类型的变量“data”，以及初始化这个类型对象。直接用“name”带上对应字段即可。
 
+要访问struct-object的值，用法和tuple一样，用dot-notation访问。
+
+上述代码类似于C语言：
+
+```c
+#include <stdio.h>
+int main() {
+	struct SomeData {
+		int integer;
+		float fractional;
+		char character;
+		unsigned char five_bytes[5];
+	};
+	struct SomeData data = {
+		10000000,
+		183.19,
+		'Q',
+		{9, 0, 250, 60, 200},
+	};
+	printf("%d, %d, %g, %c",
+		data.five_bytes[3], data.integer,
+		data.fractional, data.character);
+	return 0;
+}
+```
+
+下面和C语言的写法进行对比下。
+
+C中字段用分号隔开，Rust中用逗号，
+
+Rust中，字段带有类型，放在后面；C放在前面，
+
+C的字段类型可以简写，“int a, b;”；但是在Rust中，每个字段都要指定类型“a: i32, b: i32”。
+
+C中，初始化很简单，类似于Rust的tuple；但是Rust的结构体初始化，必须指定字段名。
+
+不论C还是Rust，都是点标记符(dot-notation)调用。
+
+如果声明的是一个可变(mutable)变量，同样可以用点标记符(dot-notation)变更字段的值。
 
 
+```rust
+struct SomeData {
+	integer: i32,
+	fractional: f32,
+}
+let mut data = SomeData {
+	integer: 10,
+	fractional: 183.19,
+};
+data.fractional = 8.2;
+print!("{}， {}", data.fractional, data.integer);
+```
+
+结果将输出：“8.2，10”。
+
+和tuple一样，strcut也可以是空。
+
+## The Tuple-Structs
+
+到目前为止，有两类结构化的容器：
+
+- tuple，类型没有名称，不能提前声明，字段没有名称；
+- struct，类型有名称，必须提前声明，字段有名称。
+
+另外还需要一种结构：类型有名称，需要提前声明，但字段没有名称。这种基于tuple和struct形式的结构体。称为：“`tuple-structs`”。
+
+```rust
+struct SomeData (
+	i32,
+	f32,
+	char,
+	[u8; 5],
+);
+let data = SomeData (
+	10_000_000,
+	183.19,
+	'Q',
+	[9, 0, 250, 60, 200],
+);
+print!("{}, {}, {}, {}", 
+	data.2, data.0, data.1, data.3[2]);
+```
+
+这种结构感觉很别扭，因为是用圆括号作语句块，并且没有指定字段的名称，初始化像struct，访问字段方式像tuple。
+
+区别于tuple和struct，`tuple-structs`这种结构不能为空。
+
+实际应用中，tuple-struct并不常用。
 
 
+## Lexical Convertions
 
+到目前为止，我们认识了一部分Rust结构体(不是全部！)，接下来要阐述一些词法规则。这些规则是如此根深蒂固，甚至于违反这些规则会令编译器抛出警告。
 
+```rust
+const MAXIMUM_POWER: u16 = 600;
+enum VehicleKind {
+	Motorcycle,
+	Car,
+	Truck,
+}
+struct VehicleData {
+	kind: VehicleKind,
+	registration_year: u16,
+	registration_month: u8,
+	power: u16,
+}
+let vehicle = VehicleData {
+	kind: VehicleKind::Car,
+	registration_year: 2003,
+	registration_month: 11,
+	power: 120,
+};
+if vehicle.power > MAXIMUM_POWER {
+	println!("Too powerful");
+}
+```
 
+上述例子阐述了一些规则要求：
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- 常理的名称要大些，并且用下划线划分词组。
+- 类型的名称由应用代码或标准库定义，枚举变量的名称由一组关联词汇粘合，要求命名首字母大写。
+- 其它(诸如关键字`let`、原生类型`u8`)名称则由小写字母，下划线划分词组。

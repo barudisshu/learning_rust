@@ -1,18 +1,23 @@
 fn main() {
-    struct SomeData {
-        integer: i32,
-        fractional: f32,
-        character: char,
-        five_bytes: [u8; 5],
+    const MAXIMUM_POWER: u16 = 600;
+    enum VehicleKind {
+        Motorcycle,
+        Car,
+        Truck,
     }
-    let data = SomeData {
-        integer: 10_000_000,
-        fractional: 183.19,
-        character: 'Q',
-        five_bytes: [9, 0, 250, 60, 200],
+    struct VehicleData {
+        kind: VehicleKind,
+        registration_year: u16,
+        registration_month: u8,
+        power: u16,
+    }
+    let vehicle = VehicleData {
+        kind: VehicleKind::Car,
+        registration_year: 2003,
+        registration_month: 11,
+        power: 120,
     };
-
-    print!("{}, {}, {}, {}", 
-    data.five_bytes[3], data.integer,
-    data.fractional, data.character);
+    if vehicle.power > MAXIMUM_POWER {
+        println!("Too powerful");
+    }
 }
