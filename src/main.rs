@@ -1,8 +1,10 @@
 fn main() {
-    fn f1() { print!("1"); fn f3() {print!("3")}; }
-    fn main() {
-        f1();
-        fn f2() { print!("2"); }
-        f2(); f1(); f2();
-    }
+    let x = 4.;
+    print_double(x);
+    print!("{}", x);
+}
+
+fn print_double(mut x: f64) {
+    x *= 2.;
+    print!("{} ", x);
 }
