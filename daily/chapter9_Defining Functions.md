@@ -180,9 +180,193 @@ print!(" {}", x);
 
 ## Returning a Value from a Function
 
+函数若要给调用者返回一个结果：
+
+```rust
+fn double(x: f64) -> f64 { x * 2. }
+print!("{}", double(17.3));
+```
+
+返回值实际上是函数体自身。因为函数体是个块，所以它的值就是最后一个表达式的值，否则就是一个空tuple ()。
+
+函数的返回类型，在C语言写在函数名前面，在Rust则写在后面，并由符号“`->`”隔离。
+
+如果没有指定返回类型，默认是空tuple，即前面说的“()”：
+
+```rust
+fn f1(x: i32) {}
+fn f2(x: i32) -> () {}
+```
+
+函数体的类型，必须与函数签名指定的类型相同，或者无符号类型可以约束的类型。因此下面代码是合法的：
+
+```rust
+fn f1() -> i32 { 4.5; "abc"; 73i32 }
+fn f2() -> i32 { 4.5; "abc"; 73 }
+fn f3() -> i32 { 4.5; "abc"; 73 + 100 }
+```
+
+下面代码不合法：
+
+```rust
+fn f1() -> i32 { 4.5; "abc"; false }
+fn f2() -> i32 { 4.5; "abc"; () }
+fn f3() -> i32 { 4.5; "abc"; {} }
+fn f4() -> i32 { 4.5; "abc"; }
+```
+
+## Early Exit
 
 
+要让一个函数从某条中间语句结束，可以使用`return`关键字返回，
 
+```rust
+fn f(x: f64) -> f64 {
+	if x <= 0. { return 0.; }
+	x + 3.
+}
+print!("{} {}", f(1.), f(-1.));
+```
+
+`return`关键字和C语言类似，不同的是最后一个语句可以不写。
+
+```rust
+fn f(x: f64) -> f64 {
+	if x <= 0. { return 0.; }
+	return x + 3.;
+}
+print!("{} {}", f(1.), f(-1.));
+```
+
+上面的写法不是严谨的，
+
+```rust
+fn f(x: f64) -> f64 {
+if x <= 0. { 0. }
+else { x + 3. }
+}
+print!("{} {}", f(1.), f(-1.));
+```
+
+如果函数签名指定的是空tuple，可以有多种写法：
+
+```rust
+fn f(x: i32) {
+	if x <= 0 { return; }
+	if x == 4 { return (); }
+	if x == 7 { return {}; }
+	print!("{}", x);
+}
+f(5);
+```
+
+任何函数调用可被看做一个有效语句：
+
+```rust
+fn f() -> i32 { 3 }
+f();
+```
+
+这里，返回值被忽略并立即销毁。
+
+相反，如果返回值被使用，如下，
+
+```rust
+fn f() -> i32 { 3 }
+let _a: i32 = f();
+```
+
+它必须是一个正确的类型。
+
+
+## Returning Several Values
+
+可以使用tuple返回多个值：
+
+```rust
+fn divide(dividend: i32, divisor: i32) -> (i32, i32) {
+	(dividend / divisor, dividend % divisor)
+}
+print!("{:?}", divide(50, 11));
+```
+
+结果输出“(4, 6)”
+
+或者你可以返回一个enum, struct, tuple struct, array, vector：
+
+```rust
+enum E { E1, E2 }
+struct S { a: i32, b: bool }
+struct TS (f64, char);
+fn f1() -> E { E::E2 }
+fn f2() -> S { S { a: 49, b: true } }
+fn f3() -> TS { TS (4.7, 'w') }
+fn f4() -> [i16; 4] { [7, -2, 0, 19] }
+fn f5() -> Vec<i64> { vec![12000] }
+print!("{} ", match f1() { E::E1 => 1, _ => -1 });
+print!("{} ", f2().a);
+print!("{} ", f3().0);
+print!("{} ", f4()[0]);
+print!("{} ", f5()[0]);
+```
+
+结果输出“"-1 49 4.7 7 12000”。
+
+下面解析下。
+
+函数`f1`调用返回一个枚举E2，并用于匹配E1，没有匹配，返回默认值-1。
+函数`f2`调用返回一个结构对象，并访问该结构的field。
+函数`f3`调用返回一个tuple-struct，通过数字identifiered访问field。
+函数`f4`调用返回一个数组，并获取数组下标的值。
+函数`f4`调用返回一个向量，并获取向量下标的值。
+
+
+## How to Change a Variable of the Caller
+
+假设我们要对数组作平方处理：
+
+```rust
+let mut arr = [5, -4, 9, 0, -7, -1, 3, 5, 3, 1];
+for i in 0..10 {
+	if arr[i] < 0 { arr[i] *= 2; }
+}
+print!("{:?}", arr);
+```
+
+现在要将其封装成一个函数：
+
+```rust
+fn double_negatives(mut a: [i32; 10]) {
+	for i in 0..10 {
+		if a[i] < 0 { a[i] *= 2; }
+	}
+}
+let mut arr = [5, -4, 9, 0, -7, -1, 3, 5, 3, 1];
+double_negatives(arr);
+print!("{:?}", arr);
+```
+
+结果仅输出“\[5, -4, 9, 0, -7, -1, 3, 5, 3, 1\].”。并没有达到预期。
+
+前面说个，函数的参数是变量的一个拷贝，因此没有办法直接修改外部变量。你可以：
+
+
+```rust
+fn double_negatives(mut a: [i32; 10]) -> [i32; 10] {
+	for i in 0..10 {
+		if a[i] < 0 { a[i] *= 2; }
+		}
+	a
+}
+let mut arr = [5, -4, 9, 0, -7, -1, 3, 5, 3, 1];
+arr = double_negatives(arr);
+print!("{:?}", arr);
+```
+
+这种方法有点遗憾：数据被拷贝了两次，第一次发生在函数调用上，第二次发生在覆盖赋值上。这种拷贝会造成额外的计算消耗，并且可以避免的。
+
+
+## Passing Arguments by Reference
 
 
 
