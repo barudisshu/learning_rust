@@ -1,18 +1,11 @@
 fn main() {
-    let mut arr = [5, -4, 9, 0, -7, -1, 3, 5, 3, 1];
-    double_negatives(&mut arr);
-    println!("{:?}", arr);
+    let a: i16 = f::<i16>('a', 37, 41);
+    let b: f64 = f::<f64>('b', 37.2, 41.1);
+    println!("{} {}", a, b);
+}
 
-    let mut a = 3;
-    plus(&mut a);
-    println!("{:?}", a);
-}
-fn double_negatives(a: &mut [i32; 10]) {
-    for i in 0..10 {
-        if a[i] < 0 { a[i] *= 2; }
-    }
-}
-fn plus(a: &mut i32) {
-    let factor:&i32 = &2;
-    *a += factor
+// Library code
+fn f<T>(ch: char, num1: T, num2: T) -> T {
+    if ch == 'a' { num1 }
+    else { num2 }
 }
