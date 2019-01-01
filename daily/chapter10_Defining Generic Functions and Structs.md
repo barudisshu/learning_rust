@@ -183,6 +183,44 @@ print!("{:?} {:?}", x, y);
 
 ## Generic Arrays and Vectors
 
+关于array和vector不是新的事物。最开始的章节已经介绍了泛型类型。
+
+实际上，array是Rust语言的一部分，vector作为结构体定义在Rust标准库。
+
+
+## Generic Enums
+
+在Rust中，enum也可以泛化。
+
+```rust
+enum Result1<SuccessCode, FailureCode> {
+	Success(SuccessCode),
+	Failure(FailureCode, char),
+	Uncertainty,
+}
+let mut _res = Result1::Success::<u32,u16>(12u32);
+_res = Result1::Uncertainty;
+_res = Result1::Failure(0u16, 'd');
+```
+
+上面代码是合法的。下面代码在最后一行发生编译错误，因为第一个参数Failure的类型是`u32`，但根据初始化，它实际上应该是`u16`
+
+```rust
+enum Result1<SuccessCode, FailureCode> {
+    Success(SuccessCode),
+    Failure(FailureCode, char),
+    Uncertainty,
+}
+let mut _res = Result1::Success::<u32,u16>(12u32);
+_res = Result1::Uncertainty;
+_res = Result1::Failure(0u32, 'd');
+```
+
+泛型枚举在Rust标准库中被大量用到。
+
+
+
+
 
 
 
