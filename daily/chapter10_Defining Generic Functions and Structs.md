@@ -218,58 +218,146 @@ _res = Result1::Failure(0u32, 'd');
 
 泛型枚举在Rust标准库中被大量用到。
 
+Rust标准库中enum最常被用于解决下面常见问题。如果一个函数可以失败(`fail`)，失败时应该做什么？
+
+例如，当vector包含条目，函数`pop`移除vector最后一个条目，并返回被删除的记录。若vector是空的，表达式`vec![0;0].pop()`应该怎样处理？
+
+某些语言不定义这种行为，让其报错或导致一个不可预测的结果。Rust尽可能避免这种未定义的行为。
+
+某些语言抛出一个异常，由闭合块或当前函数的调用方处理，或报错误。Rust中不适用异常这一概念。
+
+某些语言会返回一个指定的`null`值。但vector可以包含几乎所有类型，这些类型没有`null`值。
+
+下面是Rust的解决办法：
+
+```rust
+let mut v = vec![11, 22, 33];
+for _ in 0..5 {
+	let item: Option<i32> = v.pop();
+	match item {
+		Some(number) => print!("{}, ", number),
+		None => print!("#, "),
+	}
+}
+```
+
+结果将输出：“33, 22, 11, #, #, ”。
+
+`pop`函数作用于`Vec<T>`类型对象，并返回一个`Option<T>`类型的值。
+
+该泛型类型被定义在Rust的标准库中：
+
+```rust
+enum Option<T> {
+	Some(T),
+	None,
+}
+```
+
+它是一个optional的T类型，表示有，或者无。
 
 
+## Error Handling
 
+Rust标准库也定义了一个泛型枚举来处理函数不能返回正确类型的情况：
 
+```rust
+fn divide(numerator: f64, denominator: f64) -> Result<f64, String> {
+	if denominator == 0. {
+		Err(format!("Divide by zero"))
+	} else {
+		Ok(nmerator / denominator)
+	}
+}
+print!("{:?}, {:?}", divide(8., 2.), divide(8., 0.));
+```
 
+这回输出 `Ok(4), Err("Divide by zero")`。
 
+`Result`类型和`Option`类型类似，其中`Option`表示有或无，`Result`表述了一种异常情况。
 
+它在标准库的定义为：
 
+```rust
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+```
 
+我们使用了debug输出结果信息，在生产环境不建议这样做，可以改为下面这种形式：
 
+```rust
+fn divide(numerator: f64, denominator: f64) -> Result<f64, String> {
+    if denominator == 0. {
+        Err(format!("Divide by zero"))
+    } else {
+        Ok(numerator / denominator)
+    }
+}
 
+fn show_divide(num: f64, den: f64) {
+    match divide(num, den) {
+        Ok(val) => println!("{} / {} = {}", num, den, val),
+        Err(msg) => println!("Cannot divide {} by {}: {}", num, den, msg),
+    }
+}
+show_divide(8., 2.);
+show_divide(8., 0.);
+```
 
+结果将输出：
 
+```
+8 / 2 = 4
+Cannot divide 8 by 0: Divide by zero
+```
 
+## Enum Standard Utility Functions
 
+`Option`和`Result`标准泛型类型以一种灵活、高效的方式，允许我们捕获real-world code出现的所有情况；然而，使用`match`语句来获取结果有点不方便。
 
+因此，标准库包含一些工具类函数，以方便`Option`和`Result`类型的使用。
 
+```rust
+fn divide(numerator: f64, denominator: f64) -> Result<f64, String> {
+	if denominator == 0. {
+		Err(format!("Divide by zero"))
+	} else {
+		Ok(numerator / denominator)
+	}
+}
+let r1 = divide(8., 2.);
+let r2 = divide(8., 0.);
+println!("{} {}", r1.is_ok(), r2.is_ok());
+println!("{} {}", r1.is_err(), r2.is_err());
+println!("{}", r1.unwrap());
+println!("{}", r2.unwrap());
+```
 
+程序首先输出：
 
+```
+true false
+false true
+4
+```
 
+然后给出一个panic信息：“thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: "Divide by zero"'”。
 
+`is_ok`函数返回`true`如果变式为Ok，`is_err`返回`true`如果变式为Err。`is_err()`等价于`! is_ok()`。
 
+当作用于一个Ok变式，`unwrap`函数返回`Ok`变式的值，否则出现panics。该函数的意思是“我知道在一个Ok变式中可以wrap这个值，因此我只想获取这个容器的值，摈除它的转换；若不是Ok变式，会出现一个不可覆盖的错误，因此我会立即终止该程序”。该代码编译没有出错，运行时会出现panic错误。
 
+对于`Option`枚举也有`unwrap`函数，要输出一个Vec的所有制，你可以：
 
+```rust
+let mut v = vec![11, 22, 33];
+for _ in 0..v.len() {
+	print!("{}, ", v.pop().unwrap())
+}
+```
 
+结果会输出：“33, 22, 11,”。`unwrap`的调用会获取`Ok`内部的值。我们避免了在一个空vector调用`pop()`；否则，`pop()`返回一个`None`，`unwrap()`会出现panick。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+`unwrap`函数常被用于`quick-and-dirty`Rust程序中，即错误不要求处理的情况。
