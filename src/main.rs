@@ -1,14 +1,10 @@
 fn main() {
-    f(&3.4);
+    let a = 7;
+    let mut a_box: Box<i32>;
+    let a_ref: &i32 = &a;
+    print!("{} {};", a, a_ref);
+    a_box = Box::new(a + 2);
+    print!(" {} {} {};", a, a_ref, a_box);
+    a_box = Box::new(*a_ref);
+    print!(" {} {} {}", a, a_ref, a_box);
 }
-
-fn f(p: &f64) {
-    let a = Box::new(*p);
-    {
-        let b = Box::new([1, 2, 3]);
-        print!("{} {:?}", *a, *b);
-    }
-    let c = Box::new(true);
-    print!(" {} {}", a, c);
-}
-
