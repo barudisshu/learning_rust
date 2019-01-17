@@ -122,6 +122,62 @@ arr.sort_by(|a, b|
 print!("{:?}", arr);
 ```
 
+有很多简洁的写法。标准库早以包含有`cmp`函数("compare"的简写)；该函数根据两个参数比较返回一个`Ordering`值。下面写法是等价的：
+
+```rust
+arr.sort();
+arr.sort_by(|a, b| a.cmp(b));
+```
+
+因此，要想得到一个反转的顺序，你可以用下面的方式：
+
+```rust
+arr.sort_by(|a, b| (&-*a).cmp(&-*b));
+arr.sort_by(|a, b| b.cmp(a));
+```
+
+完整代码：
+
+```rust
+let mut arr = [4, 8, 1, 10, 0, 45, 12, 7];
+arr.sort_by(|a, b| b.cmp(a));
+print!("{:?}", arr);
+```
+
+同时也删除了`use`指令，因为这里不再需要。
+
+## Other Examples
+
+下面是以6种方式调用闭包的例子：
+
+```rust
+let factor = 2;
+let multiply = |a| a * factor;
+print!("{}", multiply(13));
+let multiply_ref: &(Fn(i32) -> i32) = & multiply;
+print!(
+	" {} {} {} {} {}",
+	(*multiply_ref)(13),
+	multiply_ref(13),
+	(|a| a * factor)(13),
+	(|a: i32| a * factor)(13),
+	|a| -> i32 { a * factor }(13));
+```
+
+将会打印输出：“`26 26 26 26 26 26`”。
+
+该程序提供6种不同风格的闭包调用。每个调用都接收一个`i32`的命名参数`a`；由变量`factor`作乘积；这里的入参总是13，所以结果总是26。
+
+在第二行，声明了一个闭包，它根据参数`a`和返回值进行类型推断。闭包内访问内部变量`factor`，即捕获了自由变量。以及初始化了变量`multiply`，它的类型由推断得出。
+
+在第三行，闭包指派到`multiply`变量的调用和函数类似。
+
+在第四行，声明的闭包的地址被用于初始化`multiply_ref`变量。该变量的类型可以被推断，但已经被明确指定。这里的`Fn`表示它是一个函数类型。每个函数都有一个类型，它有它的参数和返回值确定。表达式`Fn(i32) -> i32`表示“该函数的类型是：接收一个`i32`参数，返回一个`i32`”。该类型表达式又符号`&`处理，因为它是一个“reference to a function”，不是“a function”。
+
+在第七行，函数的引用被反向引用，获得一个函数，以及调用这个函数。
+
+
+
 
 
 
