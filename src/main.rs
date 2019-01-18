@@ -2,7 +2,13 @@ use std::cmp::Ordering;
 
 ///
 fn main() {
-    let mut arr = [4, 8, 1, 10, 0, 45, 12, 7];
-    arr.sort_by(|a, b| {(&-*a).cmp(&-*b)});
-    print!("{:?}", arr);
+    print!(
+        "{}",
+        (|v: &Vec<i32>| {
+            let mut sum = 0;
+            for i in 0..v.len() {
+                sum += v[i];
+            }
+            sum
+        })(&vec![11, 22, 34]));
 }
