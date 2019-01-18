@@ -1,14 +1,13 @@
-use std::cmp::Ordering;
+use std::mem::size_of_val;
 
 ///
 fn main() {
-    print!(
-        "{}",
-        (|v: &Vec<i32>| {
-            let mut sum = 0;
-            for i in 0..v.len() {
-                sum += v[i];
-            }
-            sum
-        })(&vec![11, 22, 34]));
+    let mut a: &str = "";
+    let mut b: &str = "0123456789";
+    let mut c: &str = "abcdè";
+    print!("{} {} {}",
+        size_of_val(a),
+        size_of_val(b),
+        size_of_val(c)
+    );
 }
