@@ -189,61 +189,127 @@ println!("{:?} {} {}: {}",
 
 添加另外3个字符后，没有再分配的发生，因为缓冲区已经足够大了。
 
-当第五个字符被添加，要求重新分配，但，由于内存紧接着的缓冲区仍然为空，缓冲区可以扩展8个字节简化实现。因此未来避免分配一个新的缓冲区出现溢出，拷贝4个已用的字节，回收前面的缓冲区。
+当第五个字符被添加，要求重新分配，但，由于内存紧接着的缓冲区仍然为空闲，缓冲区可以扩展8个字节简化实现。因此为了避免在新缓冲区分配上的开销，拷贝4个已用的字节，回收前面的缓冲区。
 
-再说一遍，添加另外3个字符，不要求再分配，当第九个字符被添加，缓冲区不再扩展16个字节，它必须重新指派，因为，不是所有推测的下一个8字节为空。
+再说一遍，添加另外3个字符，不要求再分配，当第九个字符被添加，不仅缓冲区扩展到16个字节，而且它必须重新定位地址，因为，接下来8字节可能并不是空闲的。
 
 最后，字符串用了10字节。
 
 ## Creating Strings
 
+创建空的动态字符串有几种方式。
 
+```rust
+let s1 = String::new();
+let s2 = String::from("");
+let s3 = "".to_string();
+let s4 = "".to_owned();
+let s5 = format!("");
+print!("({}{}{}{}{})", s1, s2, s3, s4, s5);
+```
 
+打印“()”。
 
+`new`函数是`String`类型的基础构造器，类似于C++的“default constructor”。
 
+`from`函数为`String`类型的转换构造器，类似于C++的“non-default constructor”。
 
+函数`to_string`和`to_owned`现在是可以替换的用法。由于历史的原因有几分不同。
 
+`format`宏是`print`宏的identical，唯一不同的是`print`是将结果发送到控制台，而`format`是返回一个`String`对象结果。
 
+上述几种方式，除了`new`函数，都可以由一个非空静态字符串转换为动态字符串。
 
+```rust
+let s = "a,";
+let s1 = String::from(s);
+let s2 = s.to_string();
+let s3 = s.to_owned();
+//let s4 = format!(s);
+//let s5 = format!("a,{}");
+let s6 = format!("{}", s);
+print!("({}{}{}{})", s1, s2, s3, s6);
+```
 
+输出“`(a,a,a,a,)`”。
 
+相反，在第五行和第六行会生成编译错误。实际上，`format`宏，和`print`还有`println`宏一样，要求它们第一个参数是一个字面量，以及这个字面量包含与连续参数相同数目的占位符。
 
+## Concatenating Strings
 
+一个动态字符串也可以由两个静态字符串、两个动态字符串、或一个动态字符串一个静态字符串，组合得到。
 
+```rust
+let ss1 = "He";
+let ss2 = "llo ";
+let ds1 = ss1.to_string();
+let ds2 = ss2.to_string();
+let ds3 = format!("{}{}", ss1, ss2);
+print!("{}", ds3);
+let ds3 = format!("{}{}", ss1, ds2);
+print!("{}", ds3);
+let ds3 = format!("{}{}", ds1, ss2);
+print!("{}", ds3);
+let ds3 = format!("{}{}", ds1, ds2);
+print!("{}", ds3);
+```
 
+输出“`Hello Hello Hello Hello`”。
 
+通常，一个字符串的出现由另一个字符串取决，当然它必须是mutable的。这样可以使用`format`宏，但它是冗长和低效的：
 
+```rust
+let mut dyn_str = "Hello".to_string();
+dyn_str = format!("{}{}", dyn_str, ", ");
+dyn_str = format!("{}{}", dyn_str, "world");
+dyn_str = format!("{}{}", dyn_str, "!");
+print!("{}", dyn_str);
+```
 
+下面是一个比较好的写法：
 
+```rust
+let mut dyn_str = "Hello".to_string();
+dyn_str.push_str(", ");
+dyn_str.push_str("world");
+dyn_str.push_str("!");
+print!("{}", dyn_str);
+```
 
+函数`push_str`接收一个静态字符串，并把所有接收到的字符串push到后面。打印“Hello, world!”。
 
+另外有一种更紧凑(compact)的写法：
 
+```rust
+let mut dyn_str = "Hello".to_string();
+dyn_str += ", ";
+dyn_str += "world";
+dyn_str += "!";
+print!("{}", dyn_str);
+```
 
+`+=`操作符，当作用在一个`String`对象时，等价于`push_str`函数。
 
+也可以追加字符串对象或单个字符。
 
+```rust
+let comma = ", ".to_string();
+let world = "world".to_string();
+let excl_point = '!';
+let mut dyn_str = "Hello".to_string();
+dyn_str += &comma;
+dyn_str.push_str(&world);
+dyn_str.push(excl_point);
+print!("{}", dyn_str);
+```
 
+该程序和上一个是等价的。注意到将动态字符串作为参数传递给`push_str`或`+=`时，必须预先转换为静态字符串。这个效果使用`&`操作符获得。实际上，可以用该操作符，获得一个`String`的引用，但任何一个`String`的引用，会隐式转换为一个`str`引用，如下：
 
+```rust
+let word = "bye".to_string();
+let w1: &str = &word;
+let w2: &String = &word;
+print!("{} {}", w1, w2);
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+打印为：“bye bye”。

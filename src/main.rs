@@ -2,12 +2,8 @@ use std::mem::*;
 
 ///
 fn main() {
-    let mut s = "".to_string();
-    for _ in 0..10 {
-        println!("{:?} \t{} \t{}",
-                 s.as_ptr(), s.capacity(), s.len());
-        s.push('a');
-    }
-    println!("{:?} \t{} \t{}: \t{}",
-             s.as_ptr(), s.capacity(), s.len(), s);
+    let word = "bye".to_string();
+    let w1: &str = &word;
+    let w2: &String = &word;
+    print!("{} {}", w1, w2);
 }
