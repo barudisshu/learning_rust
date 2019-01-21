@@ -234,7 +234,44 @@ print!("{}", min(&vec![55, 22, 33, 44]));
 
 ## Slicing
 
+有了切片的便利，渴望一个新的可能的用法。
 
+我们说有一个数组或一个向量，例如`vector[23, 17, 12, 16, 15, 2]`，以及一个函数以切片(slice)作为参数，例如上面看到的`min`函数，我们想用该函数处理仅数组或函数的一小段。例如，我们想在数组的第三、第四和第五元素中查找最小值。
+
+我们需要做的是伪造一个切边表示一个数组或向量的片段，不需要整个数组和向量。
+
+为了获得一个数组`arr`或向量`v`下标2的条目，分别可以写`arr[2]`或`v[2]`。为了获得2到5之间的所有元素，可以写`arr[2..5]`或`v[2..5]`。下面是另一种用法：
+
+```rust
+fn min(arr: &[i32]) -> i32 {
+	// Let's assume 'arr' is not empty.
+	let mu minimum = arr[0];
+	for i in 1..arr.len() {
+		if arr[i] < minimum { minimum = arr[i]; }
+	}
+	minimum
+}
+let arr = [23, 17, 12, 16, 15, 2];
+let range = 2..5;
+let slice_ref = &arr[range];
+print!("{}", min(slice_ref));
+```
+
+打印“12”，最后4行可以合并：
+
+```rust
+fn min(arr: &[i32]) -> i32 {
+	// Let's assume 'arr' is not empty.
+	let mu minimum = arr[0];
+	for i in 1..arr.len() {
+		if arr[i] < minimum { minimum = arr[i]; }
+	}
+	minimum
+}
+print!("{} ", min(&[23, 17, 12, 16, 15, 2][2..5]));
+```
+
+这种从一个数组或一个向量获取切片(slice)的过程，称为“slicing”。
 
 
 

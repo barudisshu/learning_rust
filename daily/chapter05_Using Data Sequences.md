@@ -112,7 +112,7 @@ let length = 6;
 let arr = [0; length];
 ```
 
-该代码会提示“attempt to use a non-constant value in a constant”，实际上表达式`lenght`是一个变量，从概念上来说它不是一个编译时常量，即使它是可变的，即使它被初始化为一个常量。
+该代码会提示“attempt to use a non-constant value in a constant”，实际上表达式`length`是一个变量，从概念上来说它不是一个编译时常量，即使它是可变的，即使它被初始化为一个常量。
 
 ## Vectors
 
