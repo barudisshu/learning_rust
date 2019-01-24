@@ -298,7 +298,29 @@ print!("{:?} {:?} {:?} {:?}", sr1, sr2, &arr1[1..2], &sr1[1]);
 
 ```rust
 let arr = [55, 22, 33, 44, 66];
-let 
+let _r1 = 4..4; let _a1 = &arr[_r1];
+let _r2 = 4..3;	//let _a2 = &arr[_r2];
+let _r3 = -3i32..2;	//let _a3 = &arr[_r3];
+let _r4 = 3..8;	//let _a4 = &arr[_r4];
+```
+
+该程序中，除了第一行，其它行都是以第一行作为切分数组方式声明一个range。
+
+所有range都是合法的，但不是所有切分操作合法，所以注释掉了某些语句。
+
+第二行是非常正确的，从位置4开始，再从位置4结束。它是一个空slice，空slice是允许的。
+
+第三行用了一个“倒退”的切片。在编译器中它是允许的，但在运行期会导致panic，就和超范围数组访问一样。运行期出现的错误信息，会打印在控制台，`slice index that starts at 4 but ends at 3`。
+
+第四行使用了类型限制为`i32`的一个range。它会导致编译错误，因为对于切分(slicing)操作，和序列索引一样，必须是`usize`类型。
+
+第五行使用的range超出了`arr`的范围。它编译会通过，但在运行期会带有一个panic信息“`index 8 out of range for slice of length 5`”。
+
+注意到，在这里，不论是array、vector还是slice，情况都一样。
+
+## Mutable Slicing
+
+
 
 
 
