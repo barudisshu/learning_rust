@@ -1,8 +1,11 @@
 ///
 fn main() {
-    let arr = [55, 22, 33, 44, 66, 7, 8];
-    let v = vec![55, 22, 33, 44, 66, 7, 8];
-    let sr1 = &arr[2..5];
-    let sr2 = &v[2..5];
-    print!("{:?} {:?} {:?} {:?}", sr1, sr2, &sr1[1..2], &sr1[1]);
+    let arr = [11, 22, 33, 44];
+    {
+        let mut sl_ref = &arr[1..3];
+        print!("{:?}", sl_ref);
+        sl_ref = &arr[0..1];
+        print!(" {:?}", sl_ref);
+    }
+    print!(" {:?}", arr);
 }

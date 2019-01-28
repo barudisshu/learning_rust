@@ -292,7 +292,7 @@ print!("{:?} {:?} {:?} {:?}", sr1, sr2, &arr1[1..2], &sr1[1]);
 `sr2`是一个类似地切片引用，但它引用的是向量`v`的条目。
 
 
-## Out-of_range Slicing
+## Out-of-range Slicing
 
 除了常规的切分(slicing)，甚至可以做某些怪异的事情：
 
@@ -320,11 +320,45 @@ let _r4 = 3..8;	//let _a4 = &arr[_r4];
 
 ## Mutable Slicing
 
+切片是另一个序列的一段(a portion)，更改切片内容意味着更改原来序列相应的记录。
+
+```rust
+let mut arr = [11, 22, 33, 44];
+{
+	let sl_ref = &mut arr[1..3];
+	print!("{:?}", sl_ref);
+	sl_ref[1] = 0;
+	print!(" {:?}", sl_ref);
+}
+print!(" {:?}", arr);
+```
+
+这会打印“`[22, 33] [22, 0] [11, 22, 0, 44]`”。
 
 
+可变变量`sl_ref`指向一个可变切片(mutable slice)。因此，引用不变，但切片会被改变，意味着这里可以更改数组的记录。
+
+为了获得一个可变切片的引用，基础序列(underlying sequence)必须是可变的。所以要求第一行带`mut`从句。
+
+更改切片引用意味着什么？切片引用是引用的一种，更改该引用意味着序列片段引用的更改，这里的序列(sequence)可能是切片片段，也可能是基础序列(数组或向量)片段。
+
+```rust
+let arr = [11, 22, 33, 44];
+{
+	let mut sl_ref = &arr[1..3];
+	print!("{:?}", sl_ref);
+	sl_ref = &arr[0..1];
+	print!(" {:?}", sl_ref);
+}
+print!("" {:?}", arr);
+```
+
+这里将打印：“`[22, 33] [11] [11, 22, 33, 44]`”。
+
+这段程序中，变量`arr`是一个不可变数组，所以它不会更改。变量`sl_ref`是指向一个可变切片的可变引用。
 
 
-
+## Open-Ended Ranges and Slicing
 
 
 
