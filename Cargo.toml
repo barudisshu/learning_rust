@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["barudisshu <chemnk@163.com>"]
 
 [dependencies]
+t_bang = "0.1.2"

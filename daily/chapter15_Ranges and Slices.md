@@ -182,13 +182,13 @@ print!("{}", min(&[23, 17, 12, 16, 15, 28, 17, 30]));
 
 和上一小节的不同是，“`; 8`”消失了。现在`arr`参数看起来是一个数组引用，并且没有指定数组的大小。
 
-这种类型是一个`切片引用(a reference to a slice, or slice reference)`。它的泛型形式是“`&[T]`”，`T`表示包含在数组中的任何类型。这里的“slice”表示的序列条目的子序列(sub-sequence)，如一个数组或一个向量缓冲区。基于这个目的，一个切片引用的实现是一对值：序列的第一个条目的地址，以及条目的个数。
+这种类型是一个`切片引用(a reference to a slice, or slice reference)`。它的泛型形式是“`&[T]`”，`T`表示包含在数组中的任何类型。这里的“slice”表示的序列条目的子序列(sub-sequence)，就像一个数组或一个向量缓冲区。基于这个目的，一个切片引用的实现是一对值：序列的第一个条目的地址，以及条目的个数。
 
 注意通常我们有变量类型是“切片引用(slice reference)”很少会“切”。一个slice会有类型“`[T]`”，但这种类型不能作为参数传递给一个函数，因为它的大小在编译时没有定义，函数参数的一个需求是它们在编译期定义大小。因此，我们仅能给一个函数传递`切片引用(references to slices)`，而不是`slices(切片)`。这种对象是一个指针和长度的对，因此它们占的内存为常规引用对象的两倍。
 
 切片引用的用法和一个数组用法十分类似。主要实现的不同是，数组上的`len`函数的调用，可以通过替换为数组长度的常量进行优；而对于切片引用上的`len`函数，通过访问该对象第二个字段实现。
 
-实际上，前一个章节我们看到跟slices和slice references十分相似的地方：字符串缓冲区，静态字符串。
+实际上，前一个章节我们看到跟slices和slice references可以类比：字符串缓冲区，静态字符串。
 
 我们可以建一个相似性表格：
 
@@ -238,7 +238,7 @@ print!("{}", min(&vec![55, 22, 33, 44]));
 
 我们说有一个数组或一个向量，例如`vector[23, 17, 12, 16, 15, 2]`，以及一个函数以切片(slice)作为参数，例如上面看到的`min`函数，我们想用该函数处理仅数组或函数的一小段。例如，我们想在数组的第三、第四和第五元素中查找最小值。
 
-我们需要做的是伪造一个切边表示一个数组或向量的片段，不需要整个数组和向量。
+我们需要做的是伪造一个切片表示一个数组或向量的片段，不需要整个数组和向量。
 
 为了获得一个数组`arr`或向量`v`下标2的条目，分别可以写`arr[2]`或`v[2]`。为了获得2到5之间的所有元素，可以写`arr[2..5]`或`v[2..5]`。下面是另一种用法：
 
@@ -360,56 +360,65 @@ print!("" {:?}", arr);
 
 ## Open-Ended Ranges and Slicing
 
+有时希望从给定的`n`开始获取一个序列的所有条目，或从`n`到最后的条目，可以这样：
 
+```rust
+let arr = [11, 22, 33, 44];
+let n = 2;
+let sr1 = &arr[0..n];
+let sr2 = &arr[n..arr.len()];
+print!("{:?} {:?}", sr1, sr2);
+```
 
+结果打印输出：“`[11, 22] [33, 44]`”。
 
+但有更简单的写法：
 
+```rust
+let arr = [11, 22, 33, 44];
+let n = 2;
+let sr1 = &arr[..n];
+let sr2 = &arr[n..];
+print!("{:?} {:?}", sr1, sr2);
+```
 
+第三行没有上限，第四行没有下限。实际上，这些Range是不同类型：
 
+```rust
+let r1: std::ops::RangeFrom<i32> = 3..;
+let r2: std::ops::RangeTo<i32> = ..12;
+println("{:?} {:?} {} {}", r1, r2, std::mem::size_of_val(&r1), std::mem::size_of_val(&r2));
+```
 
+结果将打印：“`3.. ..12 4 4`”。变量`r1`的类型是`RangeFrom`，有下限没有上限。变量`r2`的类型是`RangeTo`，有上限没有下限。都占4个字节，因为它们仅需要存储`i32`类型的对象。
 
+`RangeTo`仅用于开口切片(open-ended slicing)，而`RangeFrom`也可能用于特定的循环中。
 
+```rust
+for i in 3.. {
+	if i * i > 40 { break; }
+	print!("{} ", i);
+}
+```
 
+结果输出：“`3 4 5 6`”。
 
+除了上面介绍的两种，还有一种泛型类型的range：
 
+```rust
+let range: std::ops::RangeFull = ..;
+let a1 = [11, 22, 33, 44];
+let a2 = &a1[range];
+print!("{} {:?} {:?}", std::mem::size_of_val(&range), a1, a2);
+```
 
+结果打印：“`0 [11, 22, 33, 44] [11, 22, 33, 44]`”。
 
+因为`RangeFull`没有存储东西，所以它的大小是0。它被用于基础序列范围特别大的情形。
 
+下面总结一下容易混淆的概念，
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+>`[T; n]` is an array of length `n`, represented as `n` adjacent `T` instances.
+>`&[T; n]` is purely a reference to that array, represented as a thin pointer to the data.
+>`[T]` is a slice, an unsized type; it can only be used through some form of indirection.
+>`&[T]`, called a slice, is a sized type. It's a fat pointer, represented as a pointer to the first item and the length of the slice.
