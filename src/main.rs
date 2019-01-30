@@ -2,10 +2,9 @@
 use t_bang::*;
 
 fn main() {
-    let arr = [11, 22, 33, 44];
-    let n = 2;
-    let sr1 = &arr[..n];
-    let sr2 = &arr[n..];
-    let sr3 = &sr1[1..];
-    print!("{:?} {:?} {:?}", t!(sr1), sr2, t!(sr3));
+    let s = "abc012è€";
+    println!("{:?}", t!(s));
+    for i in 0..s.len() {
+        println!("{}: {}", i, s.as_bytes()[i]);
+    }
 }
