@@ -50,6 +50,58 @@ UTF-8可以表述任何ASCII字符，上述代码中字符`a`，`b`，`c`，`0`�
 
 要对字符串进行处理，需要对其进行扫描。
 
+类似于字符串“€èe”，我们想要打印第三个字符。首先，我们需要扫描第一个字符的三个字节，因为字符“€”由三个字节序列表示；接着扫描第二个字符“è”，它由两字节序列表示；接着扫描第三个字节，字符“e”仅由一个字节序列表示。
+
+在计算机科学里，有“迭代”(有时叫“游标”)的概念，它解压处理一个序列的当前位置，并在当前位置向前递进。这种操作可以用于字符串的扫描。因此，我们需要一个 __字符串迭代器(string iterator)__。
+
+```rust
+fn print_nth_char(s: &str, mut n: u32) {
+    let mut iter: std::str::Chars = s.chars();
+    loop {
+        let item: Option<char> = iter.next();
+        match item {
+            Some(c) => if n == 1 { print!("{}", c); },
+            None => { break; },
+        }
+        n -= 1;
+    }
+}
+print_nth_char("€èe", 3);
+```
+
+该函数的作用是，给定一个字符串`s`，数字`n`，如果有对应位置，则打印`s`中位置`n`的字符，否则不作任何处理。
+
+Rust标准库中提供了字符串迭代类型“Chars”。给定一个字符串“s”，通过`s.chars()`获得字符串迭代器。
+
+任何迭代器有`next`函数，该函数范围基础序列当前位置的下一个条目，并向前推进。然而，大部分序列有终点。所以，迭代器返回的下一个值，需要存在有这个位置。考虑到这个原因，Rust迭代器的`next`返回的是一个`Option<T>`类型，没有则是`None`。
+
+使用`match`语句，用`Some`触发处理下一个字符，`None`来退出无尽的循环。
+
+给定一个字符串，打印它的字符编码：
+
+```rust
+fn print_codes(s: &str) {
+	let mut iter = s.chars();
+	loop {
+		match iter.next() {
+			Some(c) => { println!("{}: {}", c, c as u32); },
+			None => { break; },
+		}
+	}
+}
+print_codes("€èe");
+```
+
+结果输出：
+
+```
+€: 8364
+è: 232
+e: 101
+```
+
+## Using Iterators in `for` Loops
+
 
 
 

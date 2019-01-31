@@ -2,9 +2,17 @@
 use t_bang::*;
 
 fn main() {
-    let s = "abc012è€";
-    println!("{:?}", t!(s));
-    for i in 0..s.len() {
-        println!("{}: {}", i, s.as_bytes()[i]);
+    print_nth_char("€èe", 3);
+}
+
+fn print_nth_char(s: &str, mut n: u32) {
+    let mut iter: std::str::Chars = s.chars();
+    loop {
+        let item: Option<char> = iter.next();
+        match item {
+            Some(c) => if n == 1 { print!("{}", c); },
+            None => { break; },
+        }
+        n -= 1;
     }
 }
