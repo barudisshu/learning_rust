@@ -102,6 +102,57 @@ e: 101
 
 ## Using Iterators in `for` Loops
 
+上面的写法有点累赘，因此，应该在语句上进行彻底的简化：
+
+```rust
+fn print_codes(s: &str) {
+	for c in s.chars() {
+		println!("{}: {}", c, c as u32);
+	}
+}
+print_codes("€èe");
+```
+
+`for`循环后面跟着的`in`关键后的表达式可以是一个迭代器。
+
+那么迭代器究竟是什么？它不是一个类型，而是一个类型规范。迭代器可以认为是包含`next`方法，返回`Option<T>`值的任何表达式。
+
+之前，我们在for循环中用过`range`。这样，所有有上限值得range都是迭代器了，因为它们有`next`函数。
+
+```rust
+// std::ops::Range<u32> 是一个迭代器
+let _v1 = (0u32..10).next();
+
+// std::ops::RangeFrom<u32> 是一个迭代器
+let _v2 = (5u32..).next();
+
+// 不合法的：std::ops::RangeTo<u32> 不是一个迭代器
+// let _v3 = (..8u32).next();
+
+// 不合法的：std::ops::RangeFull 不是一个迭代器
+// let _v4 = (..).next();
+```
+
+除了字符之外，也可以对字符串的对应的字节进行迭代：
+
+```rust
+for byte in "€èe".bytes() {
+	print!("{} ", byte);
+}
+```
+
+结果打印为：“`226 130 172 195 168 101`”。前面三个数表示的是`€`字符；紧接着的两个表示的是`è`字符；最后一个数表示的是`e`对应ASCII码。
+
+该段程序可以拆分为：
+
+```rust
+let string: &str = "€èe";
+let string_it: std::str::Bytes = string.bytes();
+for byte in string_it {
+	print!("{} ", byte);
+}
+```
+
 
 
 
