@@ -152,15 +152,184 @@ for byte in string_it {
 	print!("{} ", byte);
 }
 ```
+其中，前一个`chars`函数的返回值类型是`std::str::Chars`，这个的`bytes`函数，返回的值类型是`std::str::Bytes`。
+
+`Chars`和`Bytes`都是字符串的迭代类型，以及`Chars`的`next`函数返回的是字符串的下一个字符，而对于`Bytes`的`next`函数返回的是字符串的下一个字节。
+
+这类函数和`as_bytes`函数不同，它们返回的是字符串对应其字节上的引用切片。
+
+典型地，对于slice、array或vector也一样。字符串、slice、arrays、vectors都不是迭代器。但，就如字符串包含一个迭代器`chars`函数一样，slice、array、vector同样包含一个迭代函数`iter`。
+
+```rust
+for item_ref in (&[11u8, 22, 33]).iter() {
+	// *item_ref += 1;
+	print!("{} ", *item_ref);
+}
+for item_ref in [44, 55, 66].iter() {
+	// *item_ref += 1;
+	print!("{} ", *item_ref);
+}
+for item_ref in vec!['a', 'b', 'c'].iter() {
+	// *item_ref = if *item_ref == 'b' { 'B' } else { '-' };
+	print!("{} ", *item_ref);
+}
+```
+
+结果将打印出：“11 22 33 44 55 66 a b c”。
+
+该程序可以改为，
+
+```rust
+let slice: &[u8] = &[11u8, 22, 33];
+let slice_it: std::slice::Iter<u8> = slice.iter();
+for item_ref in slice_it {
+	// *item_ref += 1;
+	print!("{} ", *item_ref);
+}
+let arr: [i32; 3] = [44, 55, 66];
+let arr_it: std::slice::Iter<i32> = arr.iter();
+for item_ref in arr_it {
+	// *item_ref += 1;
+	print!("{} ", *item_ref);
+}
+let vec: Vec<char> = vec!['a', 'b', 'c'];
+let vec_it: std::slice::Iter<char> = vec.iter();
+for item_ref in vec_it {
+	// *item_ref = if *item_ref == 'b' { 'B' } else { '-' };
+	print!("{} ", *item_ref);
+}
+```
+
+`iter`函数，作用于类型`T`的切片的每个元素，或作用于类型`T`的数组的每个元素，或作用于类型`T`的向量的每个元素。返回值类型为`std::slice::Iter<T>`。正如其名，它的返回值类型是一个迭代器类型，因此它可以用于`for`循环中。
+
+当在类型为`T`的范围上迭代时，loop变量的类型是`T`；当在字符迭代器上迭代时，loop内变量的类型是`char`；相反，当在类型为`T`的序列上迭代时，它的循环变量是`&T`类型，即它的引用。
+
+因此，要访问一个序列的上迭代的变量，需要使用反引用符号(`*`)。
+
+上面代码有三处注释掉的语句，因为是不合法的。事实上，循环体内的变量是不可变的。这种不可变性，是基于`slice`、`arr`和`vec`的不可变声明的变量定义。
+
+前面看到，`byte`类型的字符串迭代器的创建是使用了`bytes`函数，
+
+```rust
+for byte in "€èe".bytes() {
+	print!("{} ", byte);
+}
+```
+
+有另外一种对字符串的字节迭代的方法，首先是创建字符串字节的切片引用，即使用`as_bytes`函数，然后再对其切片引用迭代，
+
+```rust
+for byte in "€èe".as_bytes().iter() {
+	print!("{} ", byte);
+}
+```
+
+## Iterations Without Mutation
+
+迭代器的典型用法通常仅用来读取序列。
+
+当要对字符串上的字符进行迭代时，尝试改变它是荒诞的，因为这些字符是由确切存在的不同字节数表示。假设，字符`è`由两个字节表示，那么`e`必须由一个字节表示。这在Rust标准库，没法通过字符迭代器改变一个字符的做法(比如`e`)，来改变另一个字符(比如`è`)。
+
+当对字符串的字节进行迭代时，要对其进行变更是不安全的，因为新创建的字节可能不是一个有效的UTF-8字符。因此，Rust标准库中也没有办法，通过迭代更改字节的方式，来更改字符串。
+
+当通过`chars()`迭代器函数对字符串的Range进行迭代时，循环体内的变量值，会使用Range类型的最先初始化时候的值，尽管在循环体内发生了更改，
+
+```rust
+let mut r = "abc".chars();
+for i in r {
+	r = "XY".chars();
+	print!("{} {}; ", i, r.next().unwrap());
+}
+```
+
+将会打印输出：“a x; b X; c X;”。虽然`r`的的值在循环内部进行了resign，但循环体仍然使用的时初始化时候的值。
+
+在任何迭代中循环变量被初始化，
+
+```rust
+let r = 0..5;
+for mut i in r {
+	i += 10;
+	print!("{} ", i);
+}
+```
+
+这里会打印：“10 11 12 13 14”，因为`i`在循环体内使用了`mut`从句定义，但`i`在下一次迭代仍然会被重新初始化，`r`的值依然不变。
+
+因此，对于字符串和Range来说，不能通过迭代器的方式来更改它内部序列的条目。
 
 
+## Iterations with Mutation
 
+但有时候，确实会有这样的需求，要求更改序列的内部条目。前面我看到迭代器不能处理这样的需求，即使是一个可变的迭代器也不能。
 
+实际上，一个可变迭代器，可以或可能通过另一个序列的迭代进行创建，而不是用来改变这个序列。
 
+一个可变迭代器的可能用法是，
 
+```rust
+let slice1 = &[3, 4, 5];
+let slice2 = &[7, 8];
+let mut iterator = slice1.iter();
+for item_ref in iterator {
+	print!("[{}] ", *item_ref);
+}
+iterator = slice2.iter();
+for item_ref in iterator {
+	print!("({}) ", *item_ref);
+}
+```
 
+变量`iterator`首先引用参考了序列`slice1`，然后是`slice2`。
 
+一个迭代器类似于一个引用，这里一个可变引用(mutable reference)不等同于一个可变对象(a reference to a mutable object)的引用这个概念。
 
+但如果你想通过一个迭代器来变更这样一个序列，你不能使用常规的迭代器(可变的mutable或不可变的immutable)，即使是，
+
+```rust
+let mut slice = &mut [3, 4, 5];
+{
+	let mut iterator = slice.iter();
+	for mut item_ref in iterator {
+		*item_ref += 1;
+	}
+}
+print!("{:?}", slice);
+```
+
+尽管这段程序有好几处用到了`mut`从句，它在循环语句内产生了一个编译错误，因为`*item_ref`仍然是不可变的。
+
+所以，你需要另外一种迭代器类型，可变迭代器(__`mutating iterator`__ )，它必须由一个可变序列进行初始化，
+
+```rust
+let slice = &mut [3, 4, 5];
+{
+	let iterator = slice.iter_mut();
+	for item_ref in iterator {
+		*item_ref += 1;
+	}
+}
+print!("{:?}", slice);
+```
+
+结果将打印：“`[4, 5, 6]`”。
+
+除了删掉一些不必要的`mut`从句，与上一段代码侧重于相比，此处将`iter`调用替换为了`iter_mut`。顾名思义，函数表述为，“get an iterator to read it”，“get an iterator to mutate it”。
+
+你还可以显式指定迭代器的类型，
+
+```rust
+let slice = &mut [3, 4, 5];
+{
+	let iterator: std::slice::IterMut<i32> = slice.iter_mut();
+	for item_ref in iterator {
+		*item_ref += 1;
+	}
+}
+print!("{:?}", slice);
+```
+
+其中，`iter`返回一个`Iter<T>`的值类型，`iter_mut`返回一个`IterMut<T>`的值类型。
 
 
 
