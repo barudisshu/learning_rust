@@ -331,11 +331,171 @@ print!("{:?}", slice);
 
 其中，`iter`返回一个`Iter<T>`的值类型，`iter_mut`返回一个`IterMut<T>`的值类型。
 
+回到上个小节关于变更slice、array、vector元素的值的问题，下面是其同样的实现，
+
+```rust
+for item_ref in (&mut [11u8, 22, 33]).iter_mut() {
+	*item_ref += 1;
+	print!("{} ", *item_ref);
+}
+for item_ref in [44, 55, 66].iter_mut() {
+	*item_ref += 1;
+	print!("{} ", *item_ref);
+}
+for item_ref in vec!['a', 'b', 'c'].iter_mut() {
+	*item_ref = if *item_ref == 'b' { 'B' } else { '-' };
+	print!("{} ", *item_ref);
+}
+```
+
+将会打印：“12 13 34 45 56 67 - B -”。
+
+该段程序可以拆分为下面的代码，
+
+```rust
+let slice: &mut [u8] = &mut [11u8, 22, 33];
+let slice_it: std::slice::IterMut<u8> = slice.iter_mut();
+for item_ref in slice_it {
+	*item_ref += 1;
+	print!("{} ", *item_ref);
+}
+let mut arr: [i32; 3] = [44, 55, 66];
+let arr_it: std::slice::IterMut<i32> = arr.iter_mut();
+for item_ref in arr_it {
+	*item_ref += 1;
+	print!("{} ", *item_ref);
+}
+let mut vec: Vec<char> = vec!['a', 'b', 'c'];
+let vec_it: std::slice::IterMut<char> = vec.iter_mut();
+for item_ref in vec_it {
+	*item_ref = if *item_ref == 'b' { 'B' } else { '-' };
+	print!("{} ", *item_ref);
+}
+```
+
+这里仅是将原来注释部分还原，其中，
+
+- `slice`变量是一个 __mutable__ 字节slice reference
+- `arr`和`vec`变量是 __mutable__ 
+- 三处的`iter`函数调用，替换为了`iter_mut`
+- `iter_mut`返回一个`IterMut`泛型值类型
+- 循环中由变量`item_ref`引用的元素发生了变更
+
+下面引用一段程序来证明原生数据的变更已经生效，
+
+```rust
+let slice = &mut [11u8, 22, 33];
+for item_ref in slice.iter_mut() {
+	*item_ref += 1;
+}
+print!("{:?}", slice);
+
+let mut arr = [44, 55, 66];
+for item_ref in arr.item_mut() {
+	*item_ref += 1;
+}
+print!("{:?}", arr);
+let mut vec = vec!['a', 'b', 'c'];
+for item_ref in vec.iter_mut() {
+	*item_ref = if *item_ref == 'b' { 'B' } else { '-' };
+}
+print!("{:?} ", vec);
+```
+
+将会打印：“`[12, 23, 34] [45, 56, 67] ['-', 'B', '-']`”。
+
+截止目前为止，接触了四个迭代类型的函数：`chars`、`bytes`、`iter`、`iter_mut`。这种不获取迭代器，而是返回迭代器的函数，称为“迭代器生成器( __iterator generators__ )”。
+
+## An Iterator Adapter: filter
+
+让我们看看迭代器的一些其它用法。
+
+例如，给一个数字数组，如何将所有的负数打印？
+
+一个可能的方法是：
+
+```rust
+let arr = [66, -8, 43, 19, 0, -31];
+for n in arr.iter() {
+	if *n < 0 { print!("{} ", n); }
+}
+```
+
+结果输出：“-8 -31”。
+
+但另一种可能的方式是，
+
+```rust
+let arr = [66, -8, 43, 19, 0, -31];
+for n in arr.iter().filter(|x| **x < 0) {
+	print!("{} ", n);
+}
+```
+
+`filter`函数定义在Rust的标准库中。它作用于一个迭代器，并接收一个闭包作为参数。正如其名，它用于“过滤”被迭代的序列，并丢弃不满足闭包定义条件的元素，剩下满足条件的元素。
+
+闭包在每次迭代的元素时调用，例如，这里每次迭代的元素为`x`，
+
+`filter`要求闭包参数的返回值类型必须是Boolean。
+
+实际上，`filter`函数返回一个迭代器(`next`函数被调用时)，它由闭包返回`ture`的情况下产生，
+
+我们注意到，我们仅关心是否为负数，即闭包内为`x < 0`即可，但为什么这里会有两个星号( * )？
+
+首先，一个星号是明确的。因为我们已经说过，`iter`函数会产生序列元素的引用，而不是元素自身。
+
+另外，`filter`函数中，它接收迭代器中的一个元素，并将该元素的引用传递给闭包，所以需要另一个星号( * )。因此`x`变成了引用的引用，要添加两个星号才能获取其表示的值。
+
+我们说过`filter`函数返回另外一个迭代器。所以我们可以在`for`循环中使用，并做迭代实现。
+
+这样一来，`filter`通过一个迭代器，返回另一个迭代器，它担当了一个“转换器transforms”的角色。这种“transformers”通常称为“迭代适配器(iterator adapters)”。术语“adapter”由电连接器得名：如果一个插头不能适合插座，使用一个适配嫁接。
 
 
+## The map Iterator Adapter
 
+`map`函数相当于一个映射，即`x:T -> y:T`，它被定义在标准库中，`map`函数不会删除元素，而是将里面的元素进行了转换，区别于`filter`函数，`filter`元素传递给闭包参数的值是一个引用，`map`传递的是一个值。
 
+```rust
+let arr = [66, -8, 43, 19, 0, -31];
+for n in arr.iter().map({x} *x * 2) {
+	print!("{} ", n);
+}
+```
 
+## The enumerate Iterator Adapter
+
+要对一个序列进行迭代，最传统做法是，
+
+```rust
+let arr = ['a', 'b', 'c'];
+for i in 0..arr.len() {
+	print!("{} {}, ", i, arr[i]);
+}
+```
+
+使用迭代器，可以避免出现计数，
+
+```rust
+let arrlet arr = ['a', 'b', 'c'];
+for ch in arr.iter() {
+	print!("{}, ", ch);
+}
+```
+
+但如果你想在新学习基础上对其进行计数，你可以，
+
+```rust
+let arr = ['a', 'b', 'c'];
+for (i, ch) in arr.iter().enumerate() {
+	print!("{} {}, ", i, *ch);
+}
+```
+
+在第二行，循环变量实际上是一个tuple，第一次迭代时，`i`的值是0，`ch`是第一个字符数组的地址，每次迭代时，`i`和`ch`都会递增。
+
+`enumerate`函数接收一个迭代器，并返回另外一个迭代器。该返回的迭代器，在每次迭代时都返回一个类型为`(usize, &char)`的tuple，第一个字段是一个计数器，第二个字段是原来迭代器元素的一份拷贝。
+
+## An Iterator Consumer: any
 
 
 
