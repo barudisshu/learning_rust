@@ -81,6 +81,25 @@ print!(" [{:?}]", std::env::var("abcd"));
 
 因为在当前程序中又给这个环境变量设置了值，即使用了`set_var`函数。所以，下一次获取时，得到内部变量`Ok`类型的值。
 
+一段类似的程序如下，
+
+```rust
+print!("{}",
+	if std::env::var("abcd").is_ok() {
+		"Already defined"
+	} else {
+		"Undefined"
+	}
+);
+std::env::set_var("abcd", "This is the value");
+print!(", {}.", match std::env::var("abcd") {
+	Ok(value) => value,
+	Err(err) => format!("Still undefined: {}", err),
+})
+```
+
+结果将打印：`Undefined, This is the value.`。
+
 
 
 
