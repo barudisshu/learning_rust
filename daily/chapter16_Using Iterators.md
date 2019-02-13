@@ -495,15 +495,265 @@ for (i, ch) in arr.iter().enumerate() {
 
 `enumerate`函数接收一个迭代器，并返回另外一个迭代器。该返回的迭代器，在每次迭代时都返回一个类型为`(usize, &char)`的tuple，第一个字段是一个计数器，第二个字段是原来迭代器元素的一份拷贝。
 
-## An Iterator Consumer: any
+## An Iterator Consumer: `any`
+
+给定一个字符串，如何判断是否包含某个字符？
+
+```rust
+let s = "Hello world!";
+let ch = 'R';
+let mut contains = false;
+for c in s.chars() {
+	if c == ch {
+		contains = true;
+	}
+}
+print!("\"{}\" {} '{}'.", s,
+	if contains {
+		"contains"
+	} else {
+		"does not contain"
+	},
+	ch
+);
+```
+
+结果将打印："Hello world!" does not contain 'R'.
+
+这里进行了字符大小写的比较。如果换为`R`，则会输出第二种情况，你可以替换为闭包实现，
+
+```rust
+let s = "Hello, world!";
+let ch = 'R';
+print!("\"{}\" {} '{}'.",
+	s,
+	if s.chars().any(|c| c == ch) {
+		"contains"
+	} else {
+		"does not contain"
+	},
+	ch);
+```
+
+闭包的好处是替换掉原来使用自定义变量的做法；这个变量替换为了表达式`s.chars().any(|c| c == ch)`的实现。
+
+函数`any()`定义在Rust标准库中，它作用在迭代器上。它的目的是确定迭代器中的任意元素是否满足布尔函数(又名“预设”predicate)。
+
+`any()`函数必须是作用在一个迭代器上的，以及必须接收一个闭包参数。闭包内的操作，对迭代内的每个元素进行处理，当某个处理到某个元素返回`true`时，结果立即返回`true`，否则所以元素的处理结果为`false`时，函数返回`false`。
+
+因此，函数名`any()`，顾名思义就是“任意的”满足条件。
+
+前面的一个判断是否包含负数的例子，可以用`any()`函数来处理，
+
+```rust
+#[macro_use]
+extern crate t_bang;
+
+use t_bang::*;
+
+fn main() {
+    let arr = [45, 8, 2, 6];
+    let mut arr_iter = arr.iter();
+    let arr_any = arr_iter.any(|n| *n < 0);
+    print!("{} ", t!(arr_iter));
+    print!("{} ", arr_any);
+}
+```
+
+为了代码清晰，你可以给闭包的类型加上注解，
+
+```rust
+print!("{} ", [45, 8, 2, 6].iter().any(|n: &i32| -> bool { *n < 0 }));
+print!("{} ", [45, 8, -2, 6].iter().any(|n: &i32| -> bool { *n < 0 }));
+```
+
+前面说过，迭代器的迭代变量是一个reference，所以这里不能省略`&`符号，否则有类型错误。
+
+前面介绍了几种迭代概念，
+
+- 函数作用在非迭代器，生成一个迭代器的，称为“迭代生成器(iterator generator)”
+- 函数作用在一个迭代器，返回另一个迭代器的，称为“迭代适配器(iterator adapter)”
+- 函数作用在一个迭代器，但不返回迭代器的，称为“迭代消费者(iterator consumer)”
+
+迭代器 “ __消费者__ ”，就是消费掉了数据，而不是“ __适配__ ”数据。除了这里的`any()`消费者，下面再介绍几种常见的。
+
+## The `all` Iterator Consumer
+
+`any()`就是“任意的”，至少有一个满足条件；对应就有`all()`，“所有的”，要求全部满足条件；
+
+```rust
+print!("{} ", [45, 8, 2, 6].iter().all(|n: &i32| -> bool { *n < 0 }));
+print!("{} ", [45, 8, -2, 6].iter().all(|n: &i32| -> bool { *n < 0 }));
+```
+
+## The `count` Iterator Consumer
+
+迭代计数器`count()`和`enumerate()`概念类似，只不过`count()`是个消费者，不会生成另一个迭代器，内部元素不会发生拷贝。
+
+例如，你想统计一个slice，array，vector的长度，你可能会使用`len`函数。但要想知道一个字符串里面有多少个字符，你就必须扫描这个字符串，因为组成字符串的字符不会保存，除非你将它存储下来。
+
+```rust
+let s = "€èe";
+print!("{} {}", s.chars().count(), s.len());
+```
+
+`count()`不接收任何参数，以及它的返回值类型总是`usize`。
+
+## The `sum` Iterator Consumer
+
+`sum()`函数用于迭代添加，它也是个迭代消费者，
+
+```rust
+print!("{}", [45, 8, -2, 6].iter().sum::<i32>());
+```
+
+这里可以指定它的类型参数`<i32>`，这个类型参数是可选的，可选的前提条件是：迭代器的元素类型需要是可加的，这样才能被类型推断处理；例如`[3.4].iter().sum::<f64>()`是合法的，但`[true].iter().sum::<bool>()`是不合法的，因为布尔值无法满足加法。
+
+## The `min` and `max` Iterator Consumers
+
+`min()`和`max()`函数用于查找最小值、最大值，它的返回类型是`Option`，其中`Some`值的作用在非空序列，`None`时则表示序列是空的。
+
+```rust
+let arr = [45, 8, -2, 6];
+match arr.iter().min() {
+	Some(n) => print!("{} ", n),
+	_ => (),
+}
+match arr.iter().max() {
+	Some(n) => print!("{} ", n),
+	_ => (),
+}
+match [0; 0].iter().min() {
+	Some(n) => print!("{} ", n),
+	_ => print!("---"),
+}
+```
+
+将会打印： -2 45 ---.
+
+`min()`和`max()`也可作用在非数字的迭代对象上，但要满足可比较性(即该类型要有`std::cmp`)，
+
+```rust
+let arr = ["hello", "brave", "new", "world"];
+match arr.iter().min() {
+	Some(n) => print!("{} ", n),
+	_ => (),
+}
+match arr.iter().max() {
+	Some(n) => print!("{] ", n),
+	_ => (),
+}
+```
+
+## The `collect` Consumer
+
+像`any()`、`all()`、`count()`、`sum()`、`min()`和`max()`这些迭代消费者返回都是简单一个值，但如果我们想将所有处理的元素收集到一个Vector呢，
+
+```rust
+let arr = [36, 1, 15, 9, 4];
+let v = arr.iter().collect::<Vec<&i32>>();
+print!("{:?}", v);
+```
+
+结果将打印："`[36, 1, 15, 9, 4]`".
+
+这里的类型参数是必须的，不过可以改为这样写，
+
+```rust
+let arr = [36, 1, 15, 9, 4];
+let v = arr.iter().collect::<Vec<_>>();
+print!("{:?}", v);
+```
+
+又或者这样，
+
+```rust
+let arr = [36, 1, 15, 9, 4];
+let v: Vec<_> = arr.iter().collect();
+print!("{:?}", v);
+```
+
+同样，字符和字节也可以收集到一个Vector，
+
+```rust
+let s = "Hello";
+println!("{:?}", s.chars().collect::<String>());
+println!("{:?}", s.chars().collect::<Vec<char>>());
+println!("{:?}", s.bytes().collect::<Vec<u8>>());
+println!("{:?}", s.as_bytes().iter().collect::<Vec<&u8>>());
+```
+
+将会打印，
+
+```
+"Hello"
+['H', 'e', 'l', 'l', 'o']
+[72, 101, 108, 108, 111]
+[72, 101, 108, 108, 111]
+```
+
+注意`collect()`函数不能用于静态字符串、静态数组、或静态切片，因为它要求运行期内存分配。
 
 
+## Iterator Chains
 
+假设你想要将一个数组里面的负数，平方后收集到另一个vector中，
 
+```rust
+let arr = [66, -8, 43, 19, 0, -31];
+let mut v = vec![];
+for i in 0..arr.len() {
+	if arr[i] > 0 { v.push(arr[i] * 2); }
+}
+print!("{:?}", v);
+```
 
+打印输出：`[132, 86, 38]`.
 
+一个等效实现是，
 
+```rust
+let arr = [66, -8, 43, 19, 0, -31];
+let mut v = vec![];
+for n in arr.iter() {
+	if *n > 0 { v.push(*n * 2); }
+}
+print!("{:?}", v);
+```
 
+又或者，
+
+```rust
+let arr = [66, -8, 43, 19, 0, -31];
+let mut v = vec![];
+for n in arr
+	.iter()
+	.filter(|x| **x > 0)
+	.map(|x| *x * 2)
+{
+	v.push(n);
+}
+print!("{:?}", v);
+```
+
+再或，
+
+```rust
+let arr = [66, -8, 43, 19, 0, -31];
+let mut v = vec![];
+for n in arr
+	.iter()
+	.filter(|x| **x > 0)
+	.map(|x| *x * 2)
+	.collect::<Vec<_>>();
+print!("{:?}", v);
+```
+
+最后一个版本展示的编程模式是函数式语言的典型：迭代链(iterator chain)。
+
+迭代链由几个概念属于组成，**迭代生成器(iterator generator)** + **迭代适配器(iterator adapter)** + **迭代消费者(iterator consumer)** 。
+
+## Iterators Are "Lazy"
 
 
 
