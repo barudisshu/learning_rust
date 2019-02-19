@@ -172,6 +172,106 @@ println!("{}: {} bytes", text, text.len());
 
 ## Proper Runtime Error Handling
 
+在真实软件世界，大部分函数调用返回一个`Result`类型值。这类函数称为“不可靠，fallible”函数，即正常返回`Ok`，异常情况返回`Err`。
+
+在C++、Java以及其他面向对象语言中，标准错误的处理技术基于“异常”这一概念，并有`throw`、`try`、`catch`这些关键字。在Rust中没有这些东西；所有错误处理基于`Result`类型，以及`match`语句匹配。
+
+假设，典型地，你写一个函数`f`，要实现它的功能，会调用几个不可靠函数，`f1`、`f2`、`f3`和`f4`。这些函数可能会返回错误，或者成功结果。希望如果某个函数失败，应该立即将错误信息返回给`f`函数，若是成功，则传递给下一个函数继续执行。
+
+一个可能的写法是，
+
+```rust
+fn f1(x: i32) -> Result<i32, String> {
+	if x == 1 {
+		Err(format!("Err. 1"))
+	} else {
+		Ok(x)
+	}
+}
+fn f2(x: i32) -> Result<i32, String> {
+	if x == 2 {
+		Err(format!("Err. 2"))
+	} else {
+		Ok(x)
+	}
+}
+fn f3(x: i32) -> Result<i32, String> {
+	if x == 3 {
+		Err(format!("Err. 3"))
+	} else {
+		Ok(x)
+	}
+}
+fn f4(x: i32) -> Result<i32, String> {
+	if x == 4 {
+		Err(format!("Err. 4"))
+	} else {
+		Ok(x)
+	}
+}
+fn f(x: i32) -> Result<i32, String> {
+	match f1(x) {
+		Ok(result) => {
+			match f2(result) {
+				Ok(result) => {
+					match f3(result) {
+						Ok(result) => f4(result),
+						Err(err_msg) => Err(err_msg),
+					}
+				}
+				Err(err_msg) => Err(err_msg),
+			}
+		Err(err_msg) => Err(err_msg),
+		}
+	}
+}
+match f(2) {
+	Ok(y) => println!("{}", y),
+	Err(e) => println!("Error: {}", e),
+}
+match f(4) {
+	Ok(y) => println!("{}", y),
+	Err(e) => println!("Error: {}", e),
+}
+match f(5) {
+	Ok(y) => println!("{}", y),
+	Err(e) => println!("Error: {}", e),
+}
+```
+
+结果将打印：
+
+```
+Error: Err. 2
+Error: Err. 4
+5
+```
+
+这种写法肯定不方便，可以替换为行内写法，
+
+```rust
+fn f(x: i32) -> Result<i32, String> {
+	let result1 = f1(x);
+	if result1.is_err() { return result1; }
+	let result2 = f2(result1.unwrap());
+	if result2.is_err() { return result2; }
+	let result3 = f3(result2.unwrap());
+	if result3.is_err() { return result3; }
+	f4(result3.unwrap())
+}
+```
+
+这种写法是将结果写入临时变量中，结果值通过`is_err`函数检测。失败则返回，成功则`unwrap`出真实结果。
+
+下面是另一种等价`f`的实现，
+
+```rust
+fn f(x: i32) -> Result<i32, String> {
+	f4(f3(f2(f1(x)?)?)?)
+}
+```
+
+
 
 
 
