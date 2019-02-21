@@ -271,6 +271,32 @@ fn f(x: i32) -> Result<i32, String> {
 }
 ```
 
+这里的问号是一个特定的宏(macro)，诸如“`e?`”的表达式，如果“`e`”是泛型类型“`Result<T,E>`”，宏展开为表达式“`match e { Some(v) => v, _ => return e }`”；相反，如果“`e`”是泛型类型“`Option<T>`”，宏展开为表达式“`match e { Ok(v) => v, _ => return e }`”。换言之，这种宏语法将“`Some`”或“`Ok`”的参数，进行转换，或返回包含的函数的一个值。
+
+它仅能作用于类型为“`Result<T,E>`”或“`Option<T>`”的表达式中，所以也仅能作用于有恰当返回值类型的函数内部。如果闭合函数返回值类型是“`Result<T1,E>`”，问号宏仅能作用于类型“`Result<T2,E>`”的表达式，其中“`T2`”可以和“`T1`”不同，但“`E`”必须相同；以及，如果闭合函数返回值类型是“`Option<T1>`”，问号宏仅能作用于类型“`Option<T2>`”的表达式。
+
+因此，要构建一个稳健的错误处理模式。每个函数包含对一个不可靠(fallible)函数的调用，应该是一个fallible函数或使用“`match`”语句处理“`Result`”结果值。在最先的一种示例代码中，每个不可靠函数的调用，都应该用问号宏来传递错误条件。“`main`”函数不可能是falliable的，所以在调用链中，应该用“`match`”语句处理“`Result`”的值。
+
+
+## Writing to the Console
+
+我们一直用“`print`”或“`println`”宏来打印消息。然而，你也可以直接用库函数将信息输出到控制台。
+
+```rust
+use std::io::Write;
+//ILLEGAL: std::io::stdout().write("Hi").unwrap();
+//ILLEGAL: std::io::stdout().write(String::from("Hi")).unwrap();
+std::io::stdout().write("Hello ".as_bytes()).unwrap();
+std::io::stdout().write(String::from("world").as_bytes()).unwrap();
+```
+
+结果将打印：“`Hello world`”。
+
+“`stdout`”标准库函数返回一个句柄处理当前进程的标准输出流，“`write`”可以实现。
+
+“`write`”函数不能直接打印静态字符串，也不能打印动态字符串，当然数字、常见组合对象也不能。
+
+
 
 
 
