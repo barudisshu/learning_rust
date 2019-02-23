@@ -86,7 +86,26 @@ int main() {
 Rust中为了避免这种类似于C++的编译为题，提供了trait来澄清复杂错误消息的各种情况，因为它更贴近真实软件环境。
 
 ```rust
+trait HasSquareRoot {
+    fn sq_root(self) -> Self;
+}
+
+impl HasSquareRoot for f32 {
+    fn sq_root(self) -> Self { f32::sqrt(self) }
+}
+
+impl HasSquareRoot for f64 {
+    fn sq_root(self) -> Self { f64::sqrt(self) }
+}
+
+fn quartic_root<Number>(x: Number) -> Number
+    where Number: HasSquareRoot {
+    x.sq_root().sq_root()
+}
+print!("{} {}", quartic_root(100f64), quartic_root(100f32));
 ```
+
+结果将打印：“3.1622776601683795 3.1622777”
 
 
 

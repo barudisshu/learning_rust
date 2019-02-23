@@ -15,7 +15,7 @@ impl HasSquareRoot for f32 {
 }
 
 impl HasSquareRoot for f64 {
-    fn sq_root(self) -> Self { f54::sqrt(self) }
+    fn sq_root(self) -> Self { f64::sqrt(self) }
 }
 
 fn quartic_root<Number>(x: Number) -> Number
@@ -24,5 +24,5 @@ fn quartic_root<Number>(x: Number) -> Number
 }
 
 fn main() {
-    print!("{} {}", quartic_root(100f64)), quartic_root(100f32);
+    print!("{} {}", quartic_root(100f64), quartic_root(100f32));
 }
