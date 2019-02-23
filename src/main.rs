@@ -6,23 +6,17 @@ use std::io::Write;
 
 use t_bang::*;
 
-trait HasSquareRoot {
-    fn sq_root(self) -> Self;
+trait LettersCount {
+    fn letters_count(&self, ch: char) -> usize;
 }
-
-impl HasSquareRoot for f32 {
-    fn sq_root(self) -> Self { f32::sqrt(self) }
+impl LettersCount for str {
+    fn letters_count(&self, ch: char) -> usize {
+        self.chars().filter(|c| *c == ch).count()
+    }
 }
-
-impl HasSquareRoot for f64 {
-    fn sq_root(self) -> Self { f64::sqrt(self) }
-}
-
-fn quartic_root<Number>(x: Number) -> Number
-    where Number: HasSquareRoot {
-    x.sq_root().sq_root()
-}
-
 fn main() {
-    print!("{} {}", quartic_root(100f64), quartic_root(100f32));
+    print!("{} ", "".letters_count('a'));
+    print!("{} ", "ddd".letters_count('a'));
+    print!("{} ", "ddd".letters_count('d'));
+    print!("{} ", "foobarbaz".letters_count('a'));
 }
