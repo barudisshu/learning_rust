@@ -391,32 +391,45 @@ loop {
 注意，这里不用显式关闭文件。只要文件处理结束，文件自动关闭，以及存储和释放所有内部临时缓冲区。
 
 
+## Processing Text Files
 
+对于文本文件的处理，例如我们想知道有多少行，有多少空白，我们可以，
 
+```rust
+let mut command_line = std::env::args();
+command_line.next();
+let pathname = command_line.next().unwrap();
+let counts = count_lines(&pathname).unwrap();
+println!("file: {}", pathname);
+println!("n. of lines: {}", counts.0);
+println!("n. of empty lines: {}", counts.1);
 
+fn count_lines(pathname: &str) -> Result<(u32, u32), std::io::Error> {
+    use std::io::BufRead;
 
+    let f = std::fs::File::open(pathname)?;
+    let f = std::io::BufReader::new(f);
+    let mut n_lines = 0;
+    let mut n_empty_lines = 0;
+    for line in f.lines() {
+        n_lines += 1;
+        if line?.trim().len() == 0 {
+            n_empty_lines += 1;
+        }
+    }
+    Ok((n_lines, n_empty_lines))
+}
+```
 
+这里用到了`BufReader`。它会将输入放入缓冲区。创建一个“`BufReader`”对象后，不需要显式使用`File`对象，新创建的对象被指派给另一个变量`f`，它会覆盖原来的变量。
 
+当两个计数器`n_lines`和`n_empty_lines`被声明以及初始化后。
 
+进入循环体对文件内容进行统计。`BufReader`类型提供了`line`函数，它是一个迭代生产者，返回所在行的一个迭代器。注意Rust的迭代器是lazy的；所以，每次迭代，循环体将下一行塞到`line`变量。
 
+以及文件读取是包含副作用的，所以`line`的值是一个`Result<String, std::io::Error>`类型值。因此，带上问号宏`?`获取它的真是字符串值，或者是返回的一个I/O错误。
 
+循环体内，`n_lines`统计行数，`n_empty_lines`将空白和0长度行进行统计，它调用了`trim`函数。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+最后一个语句返回成功值：`Ok`。它包含两个计数器。
 

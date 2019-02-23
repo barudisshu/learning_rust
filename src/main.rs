@@ -1,20 +1,28 @@
-#[macro_use] extern crate t_bang;
+#[macro_use]
+extern crate t_bang;
+
+use std::io::Read;
+use std::io::Write;
 
 use t_bang::*;
-use std::io::Write;
-use std::io::Read;
+
+trait HasSquareRoot {
+    fn sq_root(self) -> Self;
+}
+
+impl HasSquareRoot for f32 {
+    fn sq_root(self) -> Self { f32::sqrt(self) }
+}
+
+impl HasSquareRoot for f64 {
+    fn sq_root(self) -> Self { f54::sqrt(self) }
+}
+
+fn quartic_root<Number>(x: Number) -> Number
+    where Number: HasSquareRoot {
+    x.sq_root().sq_root()
+}
 
 fn main() {
-    let mut command_line: std::env::Args = std::env::args();
-    command_line.next().unwrap();
-    let source = command_line.next().unwrap();
-    let destination = command_line.next().unwrap();
-    let mut file_in = std::fs::File::open(source).unwrap();
-    let mut file_out = std::fs::File::create(destination).unwrap();
-    let mut buffer = [0u8; 4096];
-    loop {
-        let nbytes = file_in.read(&mut buffer).unwrap();
-        file_out.write(&buffer[..nbytes]).unwrap();
-        if nbytes < buffer.len() { break; }
-    }
+    print!("{} {}", quartic_root(100f64)), quartic_root(100f32);
 }
