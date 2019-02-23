@@ -315,33 +315,434 @@ print!("{} ", "foobarbaz".leters_count('a'));
 self.chars().filter(|c| *c == ch).count()
 ```
 
+## Standard Traits
 
+在最开始的章节，我们用到了宏`print`、`println`和`format`。我们可以用`{}`占位符表示支持的类型，使用`{:?}`来进行调试。
 
+但怎么知道某些类型支持`{}`占位符，其它类型却不支持？我自己写的类型如何实现支持这种占位符？
 
+实际上，这些宏使用了`fmt`函数，有标准库的`std::fmt::Display`提供了trait。所有原生类型都实现了这个trait，所以你可以给自己的类型实现，
 
+```rust
+struct Complex {
+	re: f64,
+	im: f64,
+}
+impl std::fmt::Display for Compex {
+	fn fmt(&self, &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(
+			f,
+			"{} {} {}i",
+			self.re,
+			if self.im >= 0. { '+' } else { '-' },
+			self.im.abs()
+		)
+	}
+}
+let c1 = Complex { re: -2.3, im: 0. };
+let c2 = Complex { re: -2.1, im: -5.2 };
+let c3 = Complex { re: -2.2, im: 5.2 };
+print!("{}, {}, {}", c1, c2, c3);
+```
 
+结果会打印：“-2.3 + 0i, -2.1 - 5.2i, -2.2 + 5.2i”。
 
+对于原生类型的实现traits，标准库中有非常多函数提供。
 
+## The "Terator" Trait
 
+一个非常有趣的标准库trait是“Iterator”。让我们看看它主要解决哪方面问题。
 
+例如编写一个函数，给定参数`range`，返回第三个元素，长度不够，则返回None。
 
+```rust
+fn get_third(r: std::ops::Range<u32>) -> Option<u32> {
+	if r.len() >= 3{
+		Some(r.start + 2)
+	} else {
+		None
+	}
+}
+print!("{:?} {:?}", get_third(10..12), get_third(20..23));
+```
 
+将类型换成`slice`怎样，
 
+```rust
+fn get_third(s: &[f64]) -> Option<f64> {
+	if s.len() >= 3 {
+		Some(s[2])
+	} else {
+		None
+	}
+}
+print!("{:?} {:?}", get_third(&[1.0, 2.0]), get_thrid(&[1.1, 2.1, 3.1]);
+```
 
+这两个程序非常相似。但使用的是迭代器，应该将它们写成一个泛型函数，你可能会写成
 
+```rust
+fn get_third<Iter, Item>(mut iterator: Iter) -> Option<Item> {
+	iterator.next();
+	iterator.next();
+	iterator.next()
+}
+print!("{:?} {:?}", get_third(0..9), get_third([11, 22, 33, 44].iter()));
+```
 
+你会得到几个编译错误。这种想法是好的，但有几个问题，
 
+- `iterator`变量没有边界，所以它没有`next`函数。当我们调用`get_third`函数式，我们看到参数确实是iterator，以为有`next`函数。然而，Rust需要知道泛型参数对象有哪些函数可以被调用，
+- 再看`get_thrid`函数的调用，它的泛型参数`Item`不能被推断，因为没有表达式表明给这个泛型参数传递了值。
 
+对于第一种错误，表明“迭代器”的概念没有被Rust语言定义。这个概念由Rust标准库的一个标准trait——`Iterator`定义了。我们知道迭代器都有一个`next`函数，所以任何迭代器都必须要有这个函数。
 
+```rust
+fn get_third<Iter, Item>(mut iterator: Iter) -> Option<Iterm> 
+where Iter: std::iter::Iterator {
+```
 
+但仍然有第二个错误存在：怎么确定`Item`的具体类型。为了解决这个问题，需要首先介绍`type`关键字。
 
+## The "type" Keyword
 
+Rust中的`type`对于C语言的`typedef`关键字，它相当于一个类型的别名，
 
+```rust
+type Number = f32;
+fn f1(x: Number) -> Number { x }
+fn f2(x: Number) -> NUmber { x }
+let a: Number = 2.3;
+let b: Number = 3.4;
+print!("{} {}", f1(a), f2(b));
+```
 
+使用`type`结构有两点好处：
 
+- 简洁代码，它使用了一个有意义的名字来表示原生类型了
+- 方便性，不用频繁切换类型，只需要修改type的类型即可
 
+但`type`实际上有另一个重要用途，
 
+## Generic Traits
 
+前面的章节我们知道有泛型函数和泛型结构体。trait也可以由一个或多个类型参数化表示，即要求它的函数需要泛型参数的情况。这个概念和Java的接口类似，
 
+```rust
+trait Searchable<Key> {
+	fn contains(&self, key: Key) -> bool;
+}
+fn is_present<Collection>(coll: &Collection, id: u32) -> bool
+where Collection: Searchable<u32> {
+	coll.contains(id)
+}
+```
 
+下面是该代码的完整实现，
+
+```rust
+trait Searchable<Key> {
+    fn contains(&self, key: Key) -> bool;
+}
+struct RecordWithId {
+    id: u32,
+    _descr: String,
+}
+struct NameSetWithId {
+    data: Vec<RecordWithId>
+}
+impl Searchable<u32> for NameSetWithId {
+    fn contains(&self, key: u32) -> bool {
+        for record in self.data.iter() {
+            if record.id == key {
+                return true;
+            }
+        }
+        false
+    }
+}
+fn is_present<Collection>(coll: &Collection, id: u32) -> bool
+where Collection: Searchable<u32> {
+    coll.contains(id)
+}
+
+let names = NameSetWithId {
+	data: vec![
+	RecordWithId {
+		id: 34,
+		_descr: "John".to_string(),
+	},
+		RecordWithId {
+			id: 49,
+			_descr: "Jane".to_string(),
+		},
+	],
+};
+print!("{}, {}", is_present(&names, 48), is_present(&names, 49));
+```
+
+声明了`Searchable`泛型trait后，也声明了两个结构体：“RecordWithId”，表示由唯一数字标识的数据元素；“NameSetWithId”，表示一个类型为`RecordWithId`的集合。
+
+然后，trait实现了这个集合类型。有两个方式实现：保留泛型参数，编写类似于`impl<T> Searchable<T> for NameSetWithId {`；这里是另一种实现方法，因为`contains`不仅需要指定`NameSetWithId`，还需要知道`Key`的具体类型。
+
+定义了`is_present`函数，要是有这个函数，需要定义对应的结构体。
+
+这个解决方案虽然生效了，但有一些缺陷。
+
+这里，`Searchable`需要指定`Key`的类型是`u32`，另外还要指定参数化类型的值，但在`where`从句中又重复指定了一次，
+
+考虑更复杂的情况，
+
+```rust
+trait Searchable<Key, Count> {
+	fn contains(&self, key: Key) -> bool;
+	fn count(&self, key: Key) -> Count;
+}
+struct RecordWithId {
+	id: u32,
+	_descr: String,
+}
+struct NameSetWithId {
+	data: Vec<RecordWithId>,
+}
+impl Searchable<u32, usize> for NameSetWithId {
+	fn contains(&self, key: u32) -> bool {
+		for record in self.data.iter() {
+			if record.id == key {
+				return true;
+			}
+		}
+		false
+	}
+	fn count(&self, key: u32) -> usize {
+		let mut c = 0;
+		for record in self.data.iter() {
+			if record.id == key {
+				c += 1;
+			}
+		}
+		c
+	}
+}
+fn is_present<Collection>(coll: &Collection, id: u32) -> bool
+where Collection: Searchable<u32, usize>, {
+	coll.contains(id)
+}
+let names = NameSetWithId {
+	data: vec![
+		RecordWithId {
+			id: 34,
+			_desrc: "John".to_string(),
+		},
+		RecordWithId {
+			id: 49,
+			_desrc: "Jane".to_string(),
+	],
+};
+print!(
+	"{}, {}; {} {}",
+	names.count(48),
+	names.count(49),
+	is_present(&names, 48),
+	is_present(&names, 49),
+);
+```
+
+这里不明显地`is_present`的泛型函数签名，必须指定新的类型。但这个函数并没有使用这个类型，这个类型参数在这里没有很大意义。
+
+## Using Associated Types to Simplify Generic Traits Use
+
+前面以及描述了这个无实际意义的泛型参数签名的问题。一个最好的解决方案如下，
+
+```rust
+trait Searchable { //1
+    type Key; //2
+    type Count; //3
+    fn contains(&self, key: Self::Key) -> bool;  //4
+    fn count(&self, key: Self::Key) -> Self::Count; //5
+}
+struct RecordWithId {
+    id: u32,
+    _desrc: String,
+}
+struct NameSetWithId {
+    data: Vec<RecordWithId>,
+}
+
+impl Searchable for NameSetWithId { //6
+    type Key = u32; //7
+    type Count = usize; //8
+    fn contains(&self, key: Self::Key) -> bool {    //9
+        for record in self.data.iter() {
+            if record.id == key {
+                return true;
+            }
+        }
+        false
+    }
+    fn count(&self, key: Self::Key) -> usize {  //10
+        let mut c = 0;
+        for record in self.data.iter() {
+            if record.id == key {
+                c += 1;
+            }
+        }
+        c
+    }
+}
+fn is_present<Collection>(
+    coll: &Collection, 
+    id: <Collection as Searchable>::Key,    // 11
+) -> bool
+where Collection: Searchable,   //12
+{
+    coll.contains(id)
+}
+let names = NameSetWithId {
+	data: vec![
+		RecordWithId {
+			id: 34,
+			_desrc: "John".to_string(),
+		},
+		RecordWithId {
+			id: 49,
+			_desrc: "Jane".to_string(),
+		},
+	],
+};
+print!("{}, {}; {} {}",
+	   names.count(48),
+	   names.count(49),
+	   is_present(&names, 48),
+	   is_present(&names, 49));
+```
+
+首先是，“Searchable”特质不再使用泛型，而是将泛型定义在自身内部，
+
+>这点写法和Scala的trait真的非常非常像...
+
+因此，每次使用“Key”和“Count”类型参数时，都需要带前缀“Self::”。
+
+这些改变的好处体现在`is_present`方法签名上。首先如其用具体的类型，这里用一个关联类型`Key`指定，这个不需要在指定`Searchable`，因为它没有泛型。
+
+这里将类型的定义绑定在一个`trait`上，这种实现机制，对于大型软件开发更有优势。
+
+## the "Iterator" Standard Trait Declaration
+
+关于“`Iterator`”这个标准trait，我们说过它仅包含一个item：`next`函数签名。这样说不对的。应该说是一个泛型的item。
+
+因为它由`type`元素签名，你可以认为它在标准库中的定义是这样的，
+
+```rust
+trait Iterator {
+	type Item;
+	fn next(&mut self) -> Option<Self::Item>;
+}
+```
+
+这种定义强制要求具体的迭代实现要为`Item`类型定义，以及实现`next`的方法体，
+
+下面是一种可能的实现range的方式，
+
+```rust
+trait MyIterator {
+	type Item;
+	fn next(&mut self) -> Option<Self::Item>;
+}
+struct MyRangeIterator<T> {
+	current: T,
+	limit: T,
+}
+impl MyIterator for MyRangeIterator<u32> {
+	type Item = u32;
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.current == self.limit {
+			None
+		} else {
+			self.current += 1;
+			Some(self.current - 1)
+		}
+	}
+}
+let mut range_it = MyRangeIterator {
+	current: 10,
+	limit: 13,
+};
+print!("{:?}, ", range_it.next());
+print!("{:?}, ", range_it.next());
+print!("{:?}, ", range_it.next());
+print!("{:?}, ", range_it.next());
+print!("{:?}, ", range_it.next());
+print!("{:?}, ", range_it.next());
+```
+
+这里使用了`MyRangeIterator<u32>`，指定了它的具体类型，但实际上，我们不需要定义`MyIterator`特质，因为我们可以直接使用标准库的`Iterator`。
+
+```rust
+struct MyRangeIterator<T> {
+	current: T,
+	limit: T,
+}
+impl Iterator for MyRangeIterator<u32> {
+	type Item = u32;
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.current == self.limit {
+			None
+		} else {
+			self.current += 1;
+			Some(self.current - 1)
+		}
+	}
+}
+print!("{:?}; ", 
+	MyRangeIterator {
+			current: 10,
+			limit: 13,
+	}.collect::<Vec<_>>()
+);
+for i in (MyRangeIterator {
+	current: 20,
+	limit: 24,
+}) {
+	print!("{} ", i);
+}
+```
+
+因为“MyRangeIterator”对象有实现“Iterator”特质的类型，所以它可以使用`collect`迭代器消费者。
+
+## Using Generic Iterators
+
+现在，回到原先那个`Item`无用的问题。我们想要实现泛型函数`get_third`，它接收任何迭代器，返回迭代器第三个元素，问题可以由下面代码解决，
+
+```rust
+fn get_third<Iter>(mut iterator: Iter) -> Option<Iter::Item>
+where
+	Iter: std::iter::Iterator,
+{
+	iterator.next();
+	iterator.next();
+	iterator.next()
+}
+print!(
+	"{:?} {:?} {:?} {:?}",
+	get_third(10..12),
+	get_third(20..29),
+	get_third([31, 32].iter()),
+	get_third([41, 42, 43, 44].iter())
+);
+```
+
+这里直接用`where`来绑定的`Item`的范围，这样一来，就可以访问`Item`关联的类型了，包括它的方法`next`。以及它的返回类型就是`Option<Iter::Item>`。
+
+这段代码，对于迭代参数类型的函数编写提供了参考。实际上，标准库中已经定义了类型的迭代器消费者`nth`。所以下面写法是等价的，
+
+```rust
+print!(
+	"{:?} {:?} {:?} {:?}",
+	(10..12).nth(2),
+	(20..29).nth(2),
+	([31, 32].iter()).nth(2),
+	([41, 42, 43, 44].iter()).nth(2)
+);
+```
 
