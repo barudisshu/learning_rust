@@ -296,6 +296,99 @@ std::io::stdout().write(String::from("world").as_bytes()).unwrap();
 
 “`write`”函数不能直接打印静态字符串，也不能打印动态字符串，当然数字、常见组合对象也不能。
 
+“`write`”函数接收一个“`&[u8]`”类型，它是字节切片的一个引用。这些字节会打印为控制台的UTF-8字符串。所以如果打印的对象不是UTF-8格式的切片字节，首先你需要转换。
+
+为了将静态字符串和动态字符串转换为一个字节切片的引用，你可以使用“`as_bytes`”函数。该函数返回字符串第一个字节的地址，以及字符串对象的字节数。由于这个字节数早已经包含在字符串对象的头部，所以这个函数极其高效。
+
+最后，注意到“`write`”函数返回一个“`Result`”类型值，表示它是一个不可靠函数(fallible function)。如果你确定它不可能是fail，最好调用“`unwrap`”函数获取其返回值。
+
+## Converting a Value to a String
+
+如果你希望将其它值类型打印为文本，可以使用“`to_string`”函数，它被定义在所有原生类型。
+
+```rust
+let int_str: String = 45.to_string();
+let float_str: String = 4.5.to_string();
+let bool_str: String = true.to_string();
+print!("{} {} {}", int_str, float_str, bool_str);
+```
+
+将会打印：“`45 4.5 true`”。
+
+`to_string`函数指派一个字符串对象，头部会放在栈，内容放在堆。因此，它不是高效的。
+
+## File Input/Output
+
+Rust提供了对于二进制文件或文本的读写，
+
+```rust
+use std::io::Write;
+let mut file = std::fs::File::create("data.txt").unwrap();
+file.write_all("eè€".as_bytes()).unwrap();
+```
+
+第二行调用了`create`函数，在当前文件目录下，创建一个“data.txt”的文件。该函数是falliable的，如果创建文件成功，它返回刚创建文件的句柄。
+
+最后一行调用了`write_all`函数，对新创建的文件写入某些字节，注意“eè€”有6个字节，包含行尾结束符。
+
+若要读取刚刚创建的文件“`data.txt`”，可以，
+
+```rust
+use std::io::Read;
+let mut file = std::fs::File::open("data.txt").unwrap();
+let mut contents = String::new();
+file.read_to_string(&mut contents).unwrap();
+print!("{}", contents);
+```
+
+打印输出：“eè€”。
+
+第二行调用了`open`函数，打开当前目录下的"data.txt"文件。如果文件不存在或不可访问则fail。如果成功，则指派给一个`file`变量处理该函数。
+
+第4行调用`read_to_string`函数，将文件内容读取到一个变量，由一个可变对象引用传递。
+
+最后一行将文本内容打印输出。
+
+对于文件拷贝，但是如果文件太大，是不可能将所有东西都塞到一个字符串。它要求读写分段处理。但分段处理并不高效。
+
+下面是一个拷贝文件的高效实现，
+
+```rust
+use std::io::Read;
+use std::io::Write;
+let mut command_line: std::env::Args = std::env::args();
+command_line.next().unwrap();
+let source = command_line.next().unwrap();
+let destination = command_line.next().unwrap();
+let mut file_in = std::fs::File::open(source).unwrap();
+let mut file_out = std::fs::File::create(destination).unwrap();
+let mut buffer = [0u8; 4096];
+loop {
+	let nbytes = file_in.read(&mut buffer).unwrap();
+	file_out.write(&buffer[..nbytes]).unwrap();
+	if nbytes < buffer.len() { break; }
+}
+```
+
+该段程序启动时必须传入两个命令行参数。第一个参数是源文件，第二个参数是目标文件。
+
+从第3到第6行，将第一个命令行参数指派给`source`变量，第二个命令行参数指派给`destination`变量。
+
+后面两行，将源文件打开，指派给变量`file_in`，创建文件指派给变量`file_out`。
+
+然后将一个4096字节缓存指派到栈。
+
+最后，用一个循环，重复地将一个4096byte的chunk，从源文件，写入到目标文件。缓冲区由多少字节，就自动读取多少字节。如果剩余文件片段不够长，读取少于4096的字节，或者0个字节。
+
+读取的字节被塞到了`nbytes`变量。
+
+对于超过4096字节的大文件，首次迭代读取4096个字节，然后继续迭代读取。对于小于4096字节的文件，迭代一次就可以了。
+
+任何情况下，读取的字节数量，就是写入缓冲的字节数。因此，缓冲区切片由开始位置到读取字节数长度。
+
+如果读取的字节数小于缓冲区长度，循环结束，因为已经达到输入文件的末尾。
+
+注意，这里不用显式关闭文件。只要文件处理结束，文件自动关闭，以及存储和释放所有内部临时缓冲区。
 
 
 
