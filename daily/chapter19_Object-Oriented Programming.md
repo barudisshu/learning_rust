@@ -527,32 +527,94 @@ let _a: &Tr = &true;
 
 ## Implementation of References to Traits
 
+回到原来代码关于派遣的问题，将最后几行替换如下代码，
+
+```rust
+use st::mem::size_of_val;
+print!("{} {} {}, {} {} {}, ",
+	size_of_val(&greeting),
+	size_of_val(&&greeting),
+	size_of_val(&&&greeting),
+	size_of_val(&boxed_greeting),
+	size_of_val(&&boxed_greeting),
+	size_of_val(&&&boxed_greeting));
+fn draw_text(txt: &Draw) {
+	print!("{} {} {} ",
+		size_of_val(txt),
+		size_of_val(&txt),
+		size_of_val(&&txt));
+	txt.draw();
+}
+draw_text(&greeting);
+print!(", ");
+draw_text(&boxed_greeting);
+```
+
+在64位目标机器上，会打印：“`24 8 8, 32 8 8, 24 16 8 Hello, 32 16 8 [Hi]`”。
+
+`size_of_val`定义在标准库的一个泛型函数，接收对象的引用，返回该引用对象的字节大小。
+
+首先，`greeting`变量被处理。它的类型是`Text`结构体，仅包含一个`String`对象。我们已经探讨过`String`对象在栈上占24个字节，附带在堆一个缓冲区。这个缓冲区不会在`size_of_val`函数的计算范围内。
+
+接着打印`Text`引用的大小，`Text`的引用是普通引用，占8个字节。
+
+类似地，`boxed_greeting`变量是个结构体，有两个`char`对象。每个占4个字节，一共有24 + 4 + 4 = 32字节。
+
+对于表达式`&greeting`，有类型`&Text`，它作为参数传递给`draw_text`函数，该函数实例化`txt`参数，参数类型是`&Draw`。
+
+由于`txt`是一种引用，所以可以由表达式`size_of_val(txt)`计算。它会返回引用对象的大小。但就是哪个才是`&Draw`的引用对象？明显，一定不是`Draw`，因为`Draw`不是类型。实际上，在编译期不能确定。它需要运行期，有初始化`txt`参数的表达式决定。首先，第一次接收的`txt`参数的引用类型是`Text`，占24个字节。
+
+当接收的`txt`参数的引用类型是`BoxedText`时，它占32个字节，将被打印。
+
+回到`greeting`的调用处，我们发现表达式`size_of_val(&txt)`的值是16。这很奇怪。这个表达式是求类型`&Draw`对象的大小，由类型`&Text`的对象初始化。所以，实际上用了一个常规8字节引用来初始化一个16字节的trait引用？为什么对trait的引用这么大？
+
+实际上，任何对trait的引用有两个字段。第一个字段，是初始化引用的一个拷贝；第二个字段，是一个指针，用于选择合适“版本”的`draw`函数，或者说其它函数的动态派遣。它的名字是“虚拟表指针，virtual table pointer”。该名称来源于C++。
+
+最后，trait的引用的引用被打印，它是个常规引用，所以占8个字节。
 
 
+## Static vs. Dynamic Dispatch
 
+我们可以用静态派遣，也可以用动态派遣，哪个更适合？
 
+“静态static”意味着“编译期”，“动态dynamic”意味着“运行期”，静态要求更多的编译时间，以及生成更多更快的代码，但如果编译期没有足够的可用信息，动态方案是唯一可能的选择。
 
+假设将原来的示例程序更改一下需求，要求如果字符串是“b”，则输出带边框，否则，直接输出文本。
 
+使用静态派遣，程序最后部分会变为，
 
+```rust
+// SOLUTION 1/ter //
+fn draw_text<T>(txt: T) where T: Draw {
+	txt.draw();
+}
+let mut input = String::new();
+std::io::stdin().read_line(&mut input).unwrap();
+if input.trim() == "b" {
+	draw_text(boxed_greeting);
+} else {
+	draw_text(greeting);
+}
+```
 
+当使用动态派遣，
 
+```rust
+// SOLUTION 2/bis //
+fn draw_text(txt: &Draw) {
+	txt.draw();
+}
+let mut input = String::new();
+std::io::stdin().read_line(&mut input).unwrap();
+let dr: &Draw = if input.trim() == "b" {
+	&boxed_greeting
+} else {
+	&greeting
+};
+draw_text(dr);
+```
 
+静态派遣要求写几个函数调用，动态派遣允许你将选择的对象派遣给变量`dr`，然后仅需要些一个函数接收这个变量。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+另外，静态派遣使用了泛型方法，这个技术可以会导致代码膨胀，可能最后会变得越来越慢。
 

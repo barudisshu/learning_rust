@@ -57,7 +57,12 @@ fn main() {
     let greeting = Text::from("Hello");
     let boxed_greeting =
         BoxedText::with_text_and_borders("Hi", '[', ']');
-    draw_text(&greeting);
-    print!(", ");
-    draw_text(&boxed_greeting);
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    let dr: &Draw = if input.trim() == "b" {
+        &boxed_greeting
+    } else {
+        &greeting
+    };
+    draw_text(dr);
 }
