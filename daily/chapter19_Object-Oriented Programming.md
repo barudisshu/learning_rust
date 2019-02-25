@@ -241,9 +241,243 @@ print!("{:?}", a.next());
 - 如果`Ty`是一个类型，允许有`impl Ty`，要求`Ty`被声明在当前crate。
 - 如果`Tr`是一个trait，允许有`impl Tr for Ty`，要求`Tr`或`Ty`被声明在当前crate，不能两者都是标准库或其它库的一部分。
 
-|                | `Tr`在当前rate         | `Tr`在其它crate                |
-|----------------|------------------------|-------------------------------|
+|                 | `Tr`在当前rate         | `Tr`在其它crate               |
+|-----------------|------------------------|-------------------------------|
 | `Ty`在当前crate | `impl Tr for Ty` 允许  | `impl Tr for Ty` 允许         |
 | `Ty`在其它crate | `impl Tr for Ty` 允许  | `impl Tr for Ty` 不合法       |
 
 ## Mutating Methods
+
+Rust中，任何不带`mut`关键字的，都是immutable的。这对于虚拟参数(pseudo-argument)`self`也一样。如果想通过方法，更改其作用的对象，需要带上关键字`mut`。
+
+```rust
+struct S { x: u32 }
+impl S {
+    fn get_x(&self) -> u32 { self.x }
+    fn set_x(&mut self, x: u32) { self.x = x; }
+}
+let mut s = S { x: 12 };
+print!("{} ", s.get_x());
+s.set_x(17);
+print!("{} ", s.get_x());
+```
+
+C++的等价实现如下，
+
+```cpp
+#include <iostream>
+int main() {
+	struct S {
+		unsigned long x;
+		unsigned long get_x() const { return x; }
+		void set_x(unsigned long x) { this -> x = x; }
+	};
+	S s = { 12 };
+	std::cout << s.get_x() << " ";
+	s.set_x(17);
+	std::cout << s.get_x() << " ";
+}
+```
+
+## Constructors
+
+每次用到构造对象时，我们都需要指定它的所有字段。
+
+为了独立于方法实现的方式处理对象，某些语言会提供“构造器”这个特性。Rust中也提供了一个或多个方法，不需要接收`self`参数，但有`Self`返回的实现。这类方法就是构造器，Rust中没有构造器的明确语法写法，但有一些惯例(convention)。
+
+```rust
+struct Number {
+	x: f64,
+}
+impl Number {
+	fn new() -> Number { Number { x: 0. } }
+	fn from(x: f64) -> Number { Number { x: x } }
+	fn value(&self) -> f64 { self.x }
+}
+let a = Number::new();
+let b = Number::from(2.3);
+print!("{} {}", a.value(), b.value());
+```
+
+`new`和`from`方法是构造器。按照惯例，不带参数的构造器命名为`new`，带有一个参数的构造器命名为`from`。然而，通常有很多构造器仅带一个参数的；这些构造器中仅有一个命名为`from`。
+
+这种惯例在标准库中有实例，
+
+```rust
+let a = String::new();
+let b = String::from("abcd");
+print!("({}) ({});", a, b);
+let c = Vec::<i32>::new();
+let d = Vec::<u8>::from("abcd");
+print!(" {:?} {:?}", c, d);
+```
+
+## Composition Instead of Inheritance
+
+面向对象中有三种继承：数据继承、方法实现继承、方法接口继承。Rust中不支持数据继承，因为它会带来很多问题，Rust中使用组合方式来替代数据继承的实现。
+
+假设我们有一个类型，它表示将字符文本画在屏幕上，另外要创建一个类型表示这个文本的框。为了简单，用控制台打印，替代画文本，用中括号代替这个矩形。
+
+```rust
+struct Text { characters: String }
+impl Text {
+    fn from(text: &str) -> Text {
+        Text { characters: text.to_string() }
+    }
+    fn draw(&self) {
+        print!("{}", self.characters);
+    }
+}
+struct BoxedText {
+    text: Text,
+    first: char,
+    last: char,
+}
+impl BoxedText {
+    fn with_text_and_borders(
+        text: &str, first: char, last: char) -> BoxedText {
+            BoxedText {
+                text: Text::from(text),
+                first: first,
+                last: last,
+            }
+        }
+    fn draw(&self) {
+        print!("{}", self.first);
+        self.text.draw();
+        print!("{}", self.last);
+    }
+}
+let greeting = Text::from("Hello");
+greeting.draw();
+let boxed_greeting = 
+	BoxedText::with_text_and_borders("Hi", '[', ']');
+	print!(", ");
+	boxed_greeting.draw();
+```
+
+第二条语句定义了两个方法：`from`，它是一个构造器；`draw`，打印输出字符内容。
+
+现在想利用已有的结构和方法，来创建一个新的结构`BoxedText`。它是继承的一种常见方法。
+
+在Rust中，如其使用继承，你可以创建一个`BoxedText`结构体来“包含”`Text`类型对象。然后创建对应的方法封装这个类型`with_text_and_borders`。这段代码中，代码复用出现在几个地方：
+
+- `struct BoxedText`的第一个字段是`Text`类型，它复用了数据结构，
+- `BoxedText`构造器用到了`Text::from(text)`，它复用了`Text`的构造器，
+- `BoxedText`的方法体`draw`内，用到了`self.text.draw();`。它复用了`Text`的方法`draw`，
+
+## Memory Usage of Composition
+
+组合和继承的内存使用没有区别。它们都需要内存，
+
+```rust
+struct Base1 {
+	_x: f64
+}
+struct Base2 {}
+struct Derived1 {
+	_b1: Base1,
+	_b2: Base2,
+}
+struct Derived2 {
+	_d1: Derived1,
+	_other: f64,
+}
+use std::mem:size_of;
+print!("{} {} {} {}",
+	size_of::<Base1>(), size_of::<Base2>(),
+	size_of::<Derived1>(), size_of::<Derived2>());
+```
+
+打印输出为：“8 0 8 16”。`Base1`是一个仅包含8字节数的结构体，所以它占8个字节；`Base2`结构体不包含任何东西，占0个字节；`Derived1`是一个包含两个结构体的结构体，一个占8，一个占0，总共占8个字节；`Derived2`是一个包含8字节结构体，以及一个8字节字段，总共占16字节。我们看到内存使用是非常高效的。
+
+## Static Dispatch
+
+Rust不是动态语言，所以，下面写法是不允许的，
+
+```rust
+fn draw_text(txt) {
+	txt.draw();
+}
+```
+
+这里希望，如果`txt`的类型是`Text`，则调用`Text`对应的`draw`方法；如果`txt`的类型是`BoxedText`，则调用`BoxedText`的方法`draw`。因为Rust是强静态语言，要实现这个方案，有两种不等价的实现方式，
+
+```rust
+trait Draw {
+	fn draw(&self);
+}
+struct Text { characters: String }
+impl Text {
+	fn from(text: &str) -> Text {
+		Text { characters: text.to_string() }
+	}
+}
+impl Draw for Text {
+	fn draw(&self) {
+		print!("{}", self.characters);
+	}
+}
+struct BoxedText {
+	text: Text,
+	first: char,
+	last: char,
+}
+impl BoxedText {
+	fn with_text_and_borders(text: &str, first: char, last: char) -> BoxedText {
+		BoxedText {
+			text: Text::from(text),
+			first: first,
+			last: last,
+		}
+	}
+}
+impl Draw for BoxedText {
+	fn draw(&self) {
+		print!("{}", self.first);
+		self.text.draw();
+		print!("{}", self.last);
+	}
+}
+let greeting = Text::from("Hello");
+let boxed_greeting = 
+	BoxedText::with_text_and_borders("Hi", '[', ']');
+
+// SOLUTION 1 //
+fn draw_text<T>(txt: T) where T: Draw {
+	txt.draw();
+}
+draw_text(greeting);
+print!(", ");
+draw_text(boxed_greeting);
+```
+
+这里定义了泛型函数，并使用`where`从句确定类型边界。我们需要在这里引申解析静态派遣(static dispatch)这个概念。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
