@@ -454,6 +454,81 @@ draw_text(boxed_greeting);
 
 这里定义了泛型函数，并使用`where`从句确定类型边界。我们需要在这里引申解析静态派遣(static dispatch)这个概念。
 
+首先声明了`Draw`，作为一个对象，拥有drawn的能力。
+
+然后`Text`和`BoxedText`类型被声明，有对应的方法，有两个构造函数`Text::from`和`BoxedText::with_text_and_borders`；它们的`draw`函数的实现都继承来自`Draw`。
+
+SOLUTION 1中的方法，`draw_text`泛型方法接收类型参数`T`，`T`是任何实现了`Draw`的类型。
+
+因此，不乱编译器计数器在哪里调用`draw_text`函数，它会决定参数的类型，并检测该类型是否实现`Draw`。如果没有对应类型，编译器报错，若有具体的类型，会生成具体版本的`draw_text`函数，泛型函数体内的`draw`方法的调用，会被替换为对应`T`的实现的`draw`的方法。
+
+这种技术称为“静态派遣static dispatch”。在计算机科学中，`dispatch`表示有几个同名函数时，选择调用哪个函数。在这段程序中，有两个函数命名为`draw`，因此派遣从两者中选择一个。在该程序中，选择由编译器处理，在编译期，这种派遣是“静态的static”。
+
+## Dynamic Dispatch
+
+上面的程序可以稍作改变，改变最后几行代码，
+
+```rust
+// SOLUTION 1/bis //
+fn draw_text<T>(txt: &T) where T: Draw {
+	txt.draw();
+}
+draw_text(&greeting);
+print!(", ");
+draw_text(&boxed_greeeting);
+```
+
+这里把接收参数，改为了一个reference，即在方法签名的参数带上`&`，以及两处调用带上`&`。
+
+这种方案仍然是静态派遣。因此，可以看到静态派遣工作在值传递(pass-by-value)和引用传递(pass-by-reference)上。
+
+上面的代码可以改变下，
+
+```rust
+// SOLUTION 2 //
+fn draw_text(txt: &Draw) {
+	txt.draw();
+}
+draw_text(&greeting);
+print!(", ");
+draw_text(&boxed_greeting);
+```
+
+该程序保留原来的行为，但使用了另一种技术。仅改变了`draw_text`的签名，删除了`T`类型参数，删除了`where`从句，参数用`&Draw`替换了`&T`。现在，由原来的泛型函数，替换为具体的函数，它的参数是对trait的一个引用。
+
+不同的是，一个trait不是一个类型(type)。你不能声明一个变量或一个函数参数用trait来表示它的类型。但对trait的reference是一个有效的类型。然而，它不是普通的引用。
+
+在第一个地方，如果它是一个普通引用，它不能将引用，传递`Text`或`BoxedText`中函数的参数；但实际上，它是允许的，考虑如下，
+
+```rust
+trait Tr {}
+impl Tr for bool {}
+let _a: &Tr = &true;
+```
+
+这里`bool`类型实现了`Tr`trait，所以`&true`的引用的值类型是`bool`，可以初始化给变量`_a`，`_a`是`Tr`的一个引用。
+
+相反，下面写法是不合法的，
+
+```rust
+trait Tr {}
+let _a: &Tr = &true;
+```
+
+这里，`bool` 没有`Tr`的实现，因此`&true`这个对`bool`的值引用，不能被初始化为`Tr`的引用。
+
+通常地，任何对类型`T`的引用，都可以初始化为一个实现`T`的trait的一个引用。将参数传递给函数，是一种初始化处理，因此任何对类型`T`的引用，可以作为函数参数进行传递，这个参数引用的`trait`是`T`的实现。
+
+在第二处，如果`&Draw`是一个普通指针，`txt`是指针的类型，表达式`txt.draw()`会调用相同的函数，取决于引用对象`txt`的名字。如其说需要一个dispatch，实际我们需要的是，当`draw_text`接收一个`Text`时，`Text`类型关联的`draw`方法被调用；当`draw_tet`接收一个`BoxedText`时，`BoxedText`类型关联的`draw`方法被调用。
+
+所以，这里的`&Draw`并不是一个普通的指针，而一个能够根据引用对象的类型，选择调用方法的指针。这是一种派遣(dispatch)，但发生在运行时，因此叫做“动态派遣(dynamic dispatch)”。
+
+动态派遣在C++中的通过`virtual`关键字处理，尽管机制略有不同。
+
+## Implementation of References to Traits
+
+
+
 
 
 
