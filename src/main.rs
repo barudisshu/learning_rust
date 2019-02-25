@@ -6,66 +6,30 @@ use std::io::Write;
 
 use t_bang::*;
 
-trait Searchable { //1
-    type Key; //2
-    type Count; //3
-    fn contains(&self, key: Self::Key) -> bool;  //4
-    fn count(&self, key: Self::Key) -> Self::Count; //5
+struct Stru {
+    x: u16,
+    y: u16,
 }
-struct RecordWithId {
-    id: u32,
-    _desrc: String,
-}
-struct NameSetWithId {
-    data: Vec<RecordWithId>,
-}
-
-impl Searchable for NameSetWithId { //6
-    type Key = u32; //7
-    type Count = usize; //8
-    fn contains(&self, key: Self::Key) -> bool {    //9
-        for record in self.data.iter() {
-            if record.id == key {
-                return true;
+impl Stru {
+    fn f1(a: u32) -> bool {
+        a == 0
+    }
+    fn f2(&self, b: u16) -> Self {
+        if b == self.x || b == self.y {
+            Stru {
+                x: self.x + 1,
+                y: self.y + 1,
+            }
+        } else {
+            Stru {
+                x: self.x - 1,
+                y: self.y - 1,
             }
         }
-        false
     }
-    fn count(&self, key: Self::Key) -> usize {  //10
-        let mut c = 0;
-        for record in self.data.iter() {
-            if record.id == key {
-                c += 1;
-            }
-        }
-        c
-    }
-}
-fn is_present<Collection>(
-    coll: &Collection,
-    id: <Collection as Searchable>::Key,    // 11
-) -> bool
-where Collection: Searchable,   //12
-{
-    coll.contains(id)
 }
 
 fn main() {
-    let names = NameSetWithId {
-        data: vec![
-        RecordWithId {
-            id: 34,
-            _desrc: "John".to_string(),
-        },
-            RecordWithId {
-                id: 49,
-                _desrc: "Jane".to_string(),
-            },
-        ],
-    };
-    print!("{}, {}; {} {}",
-            names.count(48),
-            names.count(49),
-           is_present(&names, 48),
-           is_present(&names, 49));
+    let s = Stru { x: 23, y: 456 };
+    print!("{} {}", Stru::f1(500_000), s.f2(456).x);
 }
