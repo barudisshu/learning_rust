@@ -1,11 +1,8 @@
-#[macro_use]
-extern crate t_bang;
-
-use std::io::Read;
-use std::io::Write;
-
-use t_bang::*;
-
+//!
+//!
+//!
+//!
+//!
 trait Draw {
     fn draw(&self);
 }

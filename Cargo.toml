@@ -1,7 +1,7 @@
 [package]
-name = "LearningRust"
+name = "learning_rust"
 version = "0.1.0"
-authors = ["barudisshu <chemnk@163.com>"]
+authors = ["Galudisu <galudisu@gmail.com>"]
 
 [dependencies]
 t_bang = "0.1.2"
