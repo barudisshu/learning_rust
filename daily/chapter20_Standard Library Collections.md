@@ -10,4 +10,160 @@
 
 数组和向量是最佳集合：内存高效，读取速度快，CPU缓存高效，能通过索引快速访问内部元素。当然，在某些情况不尽是高效的，这种情况下需要使用其它集合。Rust标准库提供了各种各样的集合类型：`VecDeque<T>`、`LinkedList<T>`、`BinaryHeap<T>`、`BTreeSet<T>`、`BTreeMap<K,V>`、`HashSet<T>`和`HashMap<K,V>`。
 
+说到集合，数组是一个单独案例，因为它完全是栈分配的，以及在编译期已经定义了大小。而对于其它集合，包括vector，元素个数可变，它将header存储在stack，数据部分则存储在堆。这种称为“动态数据集dynamically-sized collections”。
+
+## Measuring Execution Time
+
+集合的选取更多地由它的性能决定，先绕开这方面内容，看看如何精确度量不同Rust代码所花费的性能。
+
+对于软件开发者来说性能是很重要的一方面。单个函数的运行，高级语言都要求命令处理花费至毫秒和秒级别，像Rust这类低级语言，都要求毫秒甚至纳秒。
+
+在Rust标准库中，有几个函数可以度量源代码消耗的时间，
+
+```rust
+use std::time::Instant;
+
+fn elapsed_ms(t1: Instant, t2: Instant) -> f64 {
+    let t = t2 - t1;
+    t.as_secs() as f64 * 1000. + t.subsec_nanos() as f64 / 1e6
+}
+let time0 = Instant::now();
+for i in 0..10_000 {
+	println!("{}", i);
+}
+let time1 = Instant::now();
+println!("{}", elapsed_ms(time0, time1));
+```
+
+程序会打印0到9999的整数，然后将所花费的毫秒数输出。
+
+所花费的时间跟计算机能力有关，当然也跟编译器的优化有关。
+
+前面章节说到，可以用`rustc`来编译源代码文件，但是这个命令并没有编译器优化，只是单纯生成机器码用于调试，它不是高效的。
+
+如果你对性能感兴趣，可以带上编译参数`-O`。省略这个参数，所有优化都是禁用的。
+
+因此，这章示例可以通过下面命令行编译优化，
+
+```rust
+rustc -O main.rs
+```
+
+要度量一个时间，你应该用`Instant`类的`now`函数。这个类型定义在Rust的标准库中。
+
+
+## Performing Arbitrary Insertions and Removals
+
+回到原来的集合处理。下面程序是非常高效的，
+
+```rust
+const SIZE: usize = 100_000_000;
+let t0 = Instant::now();
+let mut v = Vec::<usize>::with_capacity(SIZE);
+let t1 = Instant::now();
+for i in 0..SIZE {
+	v.push(i);
+}
+let t2 = Instant::now();
+for _ in 0..SIZE {
+	v.pop();
+}
+let t3 = Instant::now();
+print!("{} {} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2), elapsed_ms(t2, t3));
+```
+
+记得添加`-O`进行编译。
+
+程序将打印三段数字，它是由编译器、或者有操作系统所决定。
+
+假设你本机输出的数据是：“0.002667 454.516057 87.302678”。
+
+这意味着创建一个vector为这个`usize`对象分配“房间”，它占64位系统800M，以及少于3毫秒的消耗时间。要将一千万的值塞入这个空间，不使用内存派遣，少于1秒的损耗时间，同时还要删除所有数据，花费1/10秒的时间。
+
+如果不加`-O`参数编译，你会发现它花费时间非常大。
+
+相反，下面的程序非常低效，
+
+```rust
+const SIZE: usize = 100_000_000;
+let t0 = Instant::now();
+let mut v = Vec::<usize>::with_capacity(SIZE);
+let t1 = Instant::now();
+for i in 0..SIZE {
+	v.insert(0, i);
+}
+let t2 = Instant::now();
+for _ in 0..SIZE {
+	v.remove(0);
+}
+let t3 = Instant::now();
+print!("{} {} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2), elapsed_ms(t2, t3));
+```
+
+它会打印：“0.00178 2038.879344 2029.447851”。
+
+要创建一个800KB的vector，花费少于2毫秒的时间，但是插入数据却花费了多于2秒的时间，以及差不多等同的时间用来删除数据。这里发现插入动作，比前面花费更多的时间。
+
+导致两者的差异很好解析。
+
+从栈顶添加元素，只需要确保有足够的空间，然后将数据拷贝到缓冲区，增加元素个数。对于计算机来说，处理这些时间少于5纳秒，包括迭代器的移位动作。
+
+同样，对于从栈顶删除元素，确保vector不为空，然后递减元素，花费不到1纳秒的时间。
+
+相反，从vector的开始部分插入元素，首先你需要将地址进行转换，每次有新的元素过来，都要释放地址空间。虽然转换很快，随着元素个数的增加，要插入首位置的元素也越来越多。
+
+类似的，要从首位置移除元素，需要将所有元素都转换一遍，不仅仅是首位置，
+
+从计算复杂度表示，栈顶(尾部)插入或删除元素是`O(K)`复杂度，它是常量复杂度(constant complexity)；而对于从栈尾(首部)插入或删除元素是`O(N)`复杂度，它是线性复杂度(linear complexity)。
+
+即使是在中间部分插入或删除数据，性能可能会稍微好一点，但仍然比在栈顶插入或删除数据要慢。
+
+
+## Queues
+
+如果是在首部和尾部同时有插入或删除动作，这个vector不会是一个优化集合。典型情况类似于Queue，它在尾部插入元素，在首部萃取元素，
+
+```rust
+const SIZE: usize = 100_000_000;
+let t0 = Instant::now();
+let mut v = Vec::<usize>::new();
+for i in 0..SIZE {
+	v.push(i);
+	v.push(SIZE + i);
+	v.remove(0);
+	v.push(SIZE * 2 + i);
+	v.remove(0);
+}
+let t1 = Instant::now();
+while v.len() > 0 {
+	v.remove(0);
+}
+let t2 = Instant::now();
+print!("{} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2));
+```
+
+可能的输出会是：“561.189636 276.056133”。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

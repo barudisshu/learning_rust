@@ -1,65 +1,22 @@
-//!
-//!
-//!
-//!
-//!
-trait Draw {
-    fn draw(&self);
-}
+use std::time::Instant;
 
-struct Text { characters: String }
-
-impl Text {
-    fn from(text: &str) -> Text {
-        Text { characters: text.to_string() }
-    }
-}
-
-impl Draw for Text {
-    fn draw(&self) {
-        print!("{}", self.characters);
-    }
-}
-
-struct BoxedText {
-    text: Text,
-    first: char,
-    last: char,
-}
-
-impl BoxedText {
-    fn with_text_and_borders(
-        text: &str, first: char, last: char) -> BoxedText {
-        BoxedText {
-            text: Text::from(text),
-            first: first,
-            last: last,
-        }
-    }
-}
-
-impl Draw for BoxedText {
-    fn draw(&self) {
-        print!("{}", self.first);
-        self.text.draw();
-        print!("{}", self.last);
-    }
-}
-
-fn draw_text(txt: &Draw) {
-    txt.draw();
+fn elapsed_ms(t1: Instant, t2: Instant) -> f64 {
+    let t = t2 - t1;
+    t.as_secs() as f64 * 1000. + t.subsec_nanos() as f64 / 1e6
 }
 
 fn main() {
-    let greeting = Text::from("Hello");
-    let boxed_greeting =
-        BoxedText::with_text_and_borders("Hi", '[', ']');
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
-    let dr: &Draw = if input.trim() == "b" {
-        &boxed_greeting
-    } else {
-        &greeting
-    };
-    draw_text(dr);
+    const SIZE: usize = 100_000_000;
+    let t0 = Instant::now();
+    let mut v = Vec::<usize>::with_capacity(SIZE);
+    let t1 = Instant::now();
+    for i in 0..SIZE {
+        v.push(i);
+    }
+    let t2 = Instant::now();
+    for _ in 0..SIZE {
+        v.pop();
+    }
+    let t3 = Instant::now();
+    print!("{} {} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2), elapsed_ms(t2, t3));
 }
