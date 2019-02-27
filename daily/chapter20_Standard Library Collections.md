@@ -235,8 +235,42 @@ print!("{} {} {} {} {}", count,
 
 对于某些应用，可能会频繁地在中间位置插入或删除元素。这种情况，向量(vector)和对象(queue)不是高效的，所以需要引入新的集合类型——`LinkedList`。
 
+然而，如果你需要在一个集合进行大量操作，譬如添加或删除很多个条目，会比`Vec`或`VecDeque`要快很多，它会创建一个新的临时集合，并由临时集合替换原来的集合。
 
+`LinkedList`的使用，不应该用于那些需要频繁读取的位置做插入或删除操作。
 
+## Binary Heaps
+
+访问集合还有另外一种方式，即所谓的“优先队列”。它出现在仅有两个函数的地方：插入元素和萃取元素。但每个元素都有优先值，萃取(extract)元素需要根据优先级获取。使用Vector时，可以类似下面这种方式包含这种行为，
+
+```rust
+fn add(v: &mut Vec<i32>, a: i32) {
+	v.push(a);
+	v.sort();
+}
+let a = [48, 18, 20, 35, 17, 13, 39, 12, 42, 33, 29, 27, 50, 16];
+let mut v = Vec::<i32>::new();
+for i in 0..a.len() / 2 {
+	add(&mut v, a[i * 2]);
+	add(&mut v, a[i * 2 + 1]);
+	print!("{} ", v.pop().unwrap());
+}
+while ! v.is_empty() {
+	print!("{} ", v.pop().unwrap());
+}
+```
+
+每次将数组元素添加到vector时，vector都进行一次排序，它的元素保持升阶的顺序。所以vector的值的萃取也总可以得到最大值。
+
+下面是另一种等价实现，只不过是在萃取前进行排序，
+
+```rust
+fn extract(v: &mut Vec<i32>) -> OPtion<i32> {
+	v.sort();
+	v.pop();
+}
+let a = [];
+```
 
 
 
