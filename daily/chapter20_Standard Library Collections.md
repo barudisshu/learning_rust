@@ -124,7 +124,7 @@ print!("{} {} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2), elapsed_ms(t2, t3));
 如果是在首部和尾部同时有插入或删除动作，这个vector不会是一个优化集合。典型情况类似于Queue，它在尾部插入元素，在首部萃取元素，
 
 ```rust
-const SIZE: usize = 100_000_000;
+const SIZE: usize = 40_000;
 let t0 = Instant::now();
 let mut v = Vec::<usize>::new();
 for i in 0..SIZE {
@@ -144,10 +144,96 @@ print!("{} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2));
 
 可能的输出会是：“561.189636 276.056133”。
 
+代码中，创建了一个空的vector，用了4千次循环，将三个数插入栈顶，以及在栈顶删除两个元素。第二个循环体内，每次从栈顶删除元素。第一个循环片段花费了大约半秒的时间，第二个循环体花费了大约四分之一秒。实际上，大部分时间都用在了萃取元素上，插入其实是非常快的。
 
+我们希望插入元素总是发生在栈尾，萃取(extract)元素总是在栈顶，
 
+```rust
+const SIZE: usize = 40_000;
+let t0 = Instant::now();
+let mut v = Vec::<usize>::new();
+for i in 0..SIZE {
+	v.insert(0, i);
+	v.insert(0, SIZE + i);
+	v.pop();
+	v.insert(0, SIZE * 2 + i);
+	v.pop();
+}
+let t1 = Instant::now();
+while v.len() > 0 {
+	v.pop();
+}
+let t2 = Instant::now();
+print!("{} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2));
+```
 
+结果可能打印：“790.365012 0.000112”。
 
+现在插入很慢，删除却很快。可是总共花费的时间并没有提升多少。我们尝试用`VecDeque`类型，
+
+```rust
+const SIZE: usize = 40_000;
+let t0 = Instant::now();
+let mut v = std::collections::VecDeque::<usize>::new();
+for i in 0..SIZE {
+	v.insert(0, i);
+	v.insert(0, SIZE + i);
+	v.pop();
+	v.insert(0, SIZE * 2 + i);
+	v.pop();
+}
+let t1 = Instant::now();
+while v.len() > 0 {
+	v.pop();
+}
+let t2 = Instant::now();
+print!("{} {}", elapsed_ms(t0, t1), elapsed_ms(t1, t2));
+```
+
+结果打印：“0.40793 0.050257”。
+
+整段程序花费不到半毫秒的时间，这里需要显式声明`VecDeque`的类型，它是“vector-like double-ended queue”的缩写，“queue”表示的是“sequential collection into which items are inserted at one end and from which items are extracted at the other end”。“double-ended”表示在尾部插入元素，也可以在尾部萃取元素，不带有penalty。“vector-like”表示具有vector相似的操作。
+
+要在vector栈顶添加或删除元素，可以简单使用`push`和`pop`，而对于`双端队列，double-ended queue`，需要理解两端的实现是等效的，插入元素可以用`push_front`和`push_back`，也可以在两端用`pop_front`和`pop_back`删除元素。虽然`VecDeque`类型支持`insert`和`remove`函数，但不被推荐使用，因为它不是高效的。
+
+给出的队列非常高效，为什么我们总是用它，而是选择用vector？
+
+原因是vector更普遍的操作是迭代、元素访问，这种时间损耗一直保持为常量因素。
+
+```rust
+const SIZE: usize = 40_000;
+let mut v = Vec::<usize>::new();
+let mut vd = std::collections::VecDeque::<usize>::new();
+let t0 = Instant::now();
+for i in 0..SIZE {
+	v.push(i);
+}
+let t1 = Instant::now();
+for i in 0..SIZE {
+	vd.push_back(i);
+}
+let mut count = 0;
+let 2 = Instant::now();
+for i in v.iter() {
+	count += i;
+}
+let t3 = Instant::now();
+for i in vd.iter() {
+	count += i;
+}
+let t4 = Instant::now();
+print!("{} {} {} {} {}", count,
+	elapsed_ms(t0, t1), elapsed_ms(t1, t2),
+	elapsed_ms(t2, t3), elapsed_ms(t3, t4));
+```
+
+可能打印：“1599960000 0.230073 0.203979 0.013144 0.035295”。
+
+会发现，`Vec`和`VecDeque`几乎花费相当的时间，但对于扫描整个集合元素，`Vec`效率要高出两倍。
+
+## Linked Lists
+
+对于某些应用，可能会频繁地在中间位置插入或删除元素。这种情况，向量(vector)和对象(queue)不是高效的，所以需要引入新的集合类型——`LinkedList`。
 
 
 
