@@ -286,7 +286,138 @@ while ! v.is_empty() {
 下面是一个等价实现，并且更快，
 
 ```rust
+let a = [48, 18, 20, 35, 17, 13, 39, 12, 42, 33, 29, 27, 50, 16];
+let mut v = std::collections::BinaryHeap::<i32>::new();
+for i in 0..a.len() / 2 {
+	v.push(a[i * 2]);
+	v.push(a[i * 2 + 1]);
+	print!("{} ", v.pop().unwrap());
+}
+while ! v.is_empty() {
+	print!("{} ", v.pop().unwrap());
+}
 ```
+
+这里的二叉堆(binary heap)类似vector一样，可以调用`push`和`pop`函数，不同的是，二叉堆的`pop`函数萃取的是容器中最大的值。
+
+## Ordered Sets and Unordered Sets
+
+集合概念中的Set是一种不包含重复元素的概念，存储这个元素的一个高效实现是“hashtable”，对应集合类型的`HashSet`。
+
+```rust
+let arr = [6, 8, 2, 8, 4, 9, 6, 1, 8, 0];
+let mut v = Vec::<_>::new();
+let mut hs = std::collections::HashSet::<_>::new();
+let mut bs = std::collections::BTreeSet::<_>::new();
+for i in arr.iter() {
+	v.push(i);
+	hs.insert(i);
+	bs.insert(i);
+}
+print!("Vec:");
+for i in v.iter() { print!(" {}", i); }
+print!(". {:?}, v);
+print!("HashSet :");
+for i in hs.iter() { print!(" {}", i); }
+println!(". {:?}, hs);
+print!("BTreeSet:");
+for i in bs.iter() { print!(" {}", i); }
+println!(". {:?}", bs);
+```
+
+会打印，
+
+```
+Vec: 6 8 2 8 4 9 6 1 8 0. [6, 8, 2, 8, 4, 9, 6, 1, 8, 0]
+HashSet : 8 2 9 6 4 0 1. {8, 2, 9, 6, 4, 0, 1}
+BTreeSet: 0 1 2 4 6 8 9. {0, 1, 2, 4, 6, 8, 9}
+```
+
+`Vec v`集合包含所有插入元素，保留插入顺序；`Hashset hs`集合不包含重复元素；`BTreeSet bs`进行了插入排序。
+
+```rust
+fn elapsed_ms(t1: Instant, t2: Instant) -> f64 {
+    let t = t2 - t1;
+    t.as_secs() as f64 * 1000. + t.subsec_nanos() as f64 / 1e6
+}
+const SIZE: i32 = 40_000;
+fn ns_per_op(t1: Instant, t2: Instant) -> f64 {
+    elapsed_ms(t1, t2) / SIZE as f64 * 1_000_000.
+}
+
+fn main() {
+    let mut v = Vec::<_>::new();
+    let mut hs = std::collections::HashSet::<_>::new();
+    let mut bs = std::collections::BTreeSet::<_>::new();
+    let t0 = Instant::now();
+    for i in 0..SIZE { v.push(i); }
+    let t1 = Instant::now();
+    for i in 0..SIZE { hs.insert(i); }
+    let t2 = Instant::now();
+    for i in 0..SIZE { bs.insert(i); }
+    let t3 = Instant::now();
+    for i in 0..SIZE { if ! v.contains(&i) { return; } }
+    let t4 = Instant::now();
+    v.swap(10_000, 20_000);
+    v.sort();
+    let t5 = Instant::now();
+    for i in 0..SIZE {
+        if v.binary_search(&i).is_err() { return; }
+    }
+    let t6 = Instant::now();
+    for i in 0..SIZE { if ! hs.contains(&i) { return; } }
+    let t7 = Instant::now();
+    for i in 0..SIZE { if ! bs.contains(&i) { return; } }
+    let t8 = Instant::now();
+    println!("Pushes in Vec: {}", ns_per_op(t0, t1));
+    println!("Insertions in HashSet: {}", ns_per_op(t1, t2));
+    println!("Insertions in BTreeSet: {}", ns_per_op(t2, t3));
+    println!("Linear search in Vec: {}", ns_per_op(t3, t4));
+    println!("Sort of Vec: {}", ns_per_op(t4, t5));
+    println!("Binary search in Vec: {}", ns_per_op(t5, t6));
+    println!("Search in HashSet: {}", ns_per_op(t6, t7));
+    println!("Search in BTreeSet: {}", ns_per_op(t7, t8));
+}
+```
+
+将会打印：
+
+```
+Pushes in Vec: 6.4021
+Insertions in HashSet: 139.214
+Insertions in BTreeSet: 127.3047
+Linear search in Vec: 17389.3111
+Sort of Vec: 3.1132
+Binary search in Vec: 47.7641
+Search in HashSet: 36.5041
+Search in BTreeSet: 56.2444
+```
+
+栈顶插入元素，花费6纳秒，`HashSet`和`BTreeSet`插入元素，花费接近20倍。
+
+线性方式搜索vector，花费时间非常大，改为二分查找算法后，平均在50纳秒的时间。所以，如果插入比查找少的情况，每次插入元素之后进行排序，再用二分查找会更加高效。
+
+`HashSet`的查找花费40纳秒左右；`BTreeSet`的查找花费接近60纳秒左右。
+
+优化数据结构的原则是，
+
+首先声明一个trait，它包含有该数据结构的方法签名，接着实现这个trait，再测试这个trait的实现方法的性能，如果性能太低。重构代码进行优化，知道满意的实现。
+
+## Ordered Dictionaries and Unordered Dictionaries
+
+集合处理简单的存储、访问使用外，另一种常见用法是“字典”，即由“key”进行访问。
+
+字典可以看做是key-value对，它的处理由key决定。所以，字典不能有两个相同的key。
+
+Rust标准库中提供了`HashMap`和`BTreeMap`的算法实现，类同于`HashSet`，`HashMap`不进行排序，但速度较快；`BTreeMap`较慢，但按顺序存储。
+
+```rust
+let arr = [
+```
+
+
+ 
+
 
 
 
