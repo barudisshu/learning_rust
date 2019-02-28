@@ -6,28 +6,14 @@ fn elapsed_ms(t1: Instant, t2: Instant) -> f64 {
 }
 
 fn main() {
-    const SIZE: usize = 40_000;
-    let mut v = Vec::<usize>::new();
-    let mut vd = std::collections::VecDeque::<usize>::new();
-    let t0 = Instant::now();
-    for i in 0..SIZE {
-        v.push(i);
+    let a = [48, 18, 20, 35, 17, 13, 39, 12, 42, 33, 29, 27, 50, 16];
+    let mut v = std::collections::BinaryHeap::<i32>::new();
+    for i in 0..a.len() / 2 {
+        v.push(a[i * 2]);
+        v.push(a[i * 2 + 1]);
+        print!("{} ", v.pop().unwrap());
     }
-    let t1 = Instant::now();
-    for i in 0..SIZE {
-        vd.push_back(i);
+    while ! v.is_empty() {
+        print!("{} ", v.pop().unwrap());
     }
-    let mut count = 0;
-    let t2 = Instant::now();
-    for i in v.iter() {
-        count += i;
-    }
-    let t3 = Instant::now();
-    for i in vd.iter() {
-        count += i;
-    }
-    let t4 = Instant::now();
-    print!("{} {} {} {}", 
-        elapsed_ms(t0, t1), elapsed_ms(t1, t2),
-        elapsed_ms(t2, t3), elapsed_ms(t3, t4));
 }

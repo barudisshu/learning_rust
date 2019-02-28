@@ -269,7 +269,23 @@ fn extract(v: &mut Vec<i32>) -> OPtion<i32> {
 	v.sort();
 	v.pop();
 }
-let a = [];
+let a = [48, 18, 20, 35, 17, 13, 39, 12, 42, 33, 29, 27, 50, 16];
+let mut v = Vec::<i32>::new();
+for i in 0..a.len() / 2 {
+	v.push(a[i * 2]);
+	v.push(a[i * 2 + 1]);
+	print!("{} ", extract(&mut v).unwrap());
+}
+while ! v.is_empty() {
+	print!("{} ", extract(&mut v).unwrap());
+}
+```
+
+这两个代码都有不好之处在于频繁调用了`sort`函数，它有较大消耗。
+
+下面是一个等价实现，并且更快，
+
+```rust
 ```
 
 
