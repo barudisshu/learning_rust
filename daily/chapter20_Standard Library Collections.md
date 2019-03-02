@@ -412,25 +412,66 @@ Search in BTreeSet: 56.2444
 Rust标准库中提供了`HashMap`和`BTreeMap`的算法实现，类同于`HashSet`，`HashMap`不进行排序，但速度较快；`BTreeMap`较慢，但按顺序存储。
 
 ```rust
-let arr = [
+let arr = [(640, 'T'), (917, 'C'), (412, 'S'), (670, 'T'), (917, 'L')];
+let mut v = Vec::<_>::new();
+let mut hs = std::collections::HashMap::<_, _>::new();
+let mut bs = std::collections::BTreeMap::<_, _>::new();
+for &(key, value) in arr.iter() {
+	v.push((key, value));
+	hs.insert(key, value);
+	bs.insert(key, value);
+}
+print!("Vec:");
+for &(key, value) in v.iter() {
+	print!(" {}: {},", key, value);
+}
+println!("\n {:?}", v);
+print!("HashMap:");
+for (key, value) in hs.iter() {
+	print!(" {}: {},", key, value);
+}
+println!("\n {:?}", hs);
+print!("BTreeMap:");
+for (key, value) in bs.iter() {
+	print!(" {}: {},", key, value);
+}
+println!("\n {:?}", bs);
 ```
 
+结果打印：
 
- 
+```
+Vec: 640: T, 917: C, 412: S, 670: T, 917: L,
+ [(640, 'T'), (917, 'C'), (412, 'S'), (670, 'T'), (917, 'L')]
+HashMap: 640: T, 412: S, 917: L, 670: T,
+ {640: 'T', 412: 'S', 917: 'L', 670: 'T'}
+BTreeMap: 412: S, 640: T, 670: T, 917: L,
+ {412: 'S', 640: 'T', 670: 'T', 917: 'L'}
+```
 
+字典中不允许重复的key，但允许重复的value，以及`BTreeMap`按照key顺序排列，而`HashMap`顺序随机。
 
+它们的性能类似于`HashSet`和`BTreeSet`。
 
+## Collections in C++ and in Rust
 
+C++标准库中对应Rust集合列表如下，某些集合库在Rust中并没有对应，用`~`标记表示最相似的集合，
 
-
-
-
-
-
-
-
-
-
-
-
-
+|  C++                        |  Rust                      |
+|:----------------------------|:---------------------------|
+|  `array<T>`                 |  `[T]`                     |
+|  `vector<T>`                |  `Vec<T>`                  |
+|  `deque<T>`                 |  `VecDeque<T>`             |
+|  `forward_list<T>`          |  `~ LinkedList<T>`         |
+|  `list<T>`                  |  `LinkedList<T>`           |
+|  `stack<T>`                 |  `~ Vec<T>`                |
+|  `queue<T>`                 |  `~ VecDeque<T>`           |
+|  `priority_queue<T>`        |  `BinaryHeap<T>`           |
+|  `set<T>`                   |  `BTreeSet<T>`             |
+|  `multiset<T>`              |  `~ BTreeMap<T,u32>`       |
+|  `map<K,V>`                 |  `BTreeMap<K,V>`           |
+|  `multimap<K,V>`            |  `~ BTreeMap<K, (V,u32)>`  |
+|  `unordered_set<T>`         |  `HashSet<T>`              |
+|  `unordered_multiset<T>`    |  `~ HashMap<T,u32>`        |
+|  `unordered_map<K,V>`       |  `HashMap<K,V>`            |
+|  `unordered_multimap<K,V>`  |  `~ HashMap<K,(V,u32)>`    |
