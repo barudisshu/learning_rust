@@ -92,8 +92,54 @@ print!("{}", a);
 
 ## Destructors
 
+我们看到对象的创建有两步：给对象分配内存，初始化这个内存空间的值。对于复杂对象，初始化是如此复杂，通常需要使用一个函数实现。这个函数叫“构造器”，用来“构造”一个新的对象。
 
+我们刚看到，当一个对象被回收，会发生一些复杂情况。如果在heap中一个对象引用另一个对象，一个级联(cascade)的回收可能会发生。因此，对象的“销毁”可能需要由一个函数处理，称作“destructor，焚烧炉，销毁装置”。
 
+通常销毁器是属于标准库的一部分，但有时你可能需要在对象回收时做一些cleanup code操作，所以你需要写一个destructor。
+
+```rust
+struct CommunicationChannel {
+    address: String,
+    port: u16,
+}
+impl Drop for CommunicationChannel {
+    fn drop(&mut self) {
+        println!("Closing port {}:{}", self.address, self.port);
+    }
+}
+impl CommunicationChannel {
+    fn create(address: &str, port: u16) -> CommunicationChannel {
+        println!("Operning port {}:{}", address, port);
+        CommunicationChannel {
+            address: address.to_string(),
+            port: port,
+        }
+    }
+    fn send(&self, msg: &str) {
+        println!("Sent to {}:{} the message '{}'", self.address, self.port, msg);
+    }
+}
+let channel = CommunicationChannel::create("usb4", 879);
+channel.send("Message 1");
+{
+	let channel = CommunicationChannel::create("eth1", 12000);
+	channel.send("Message 2");
+}
+channel.send("Message 3");
+```
+
+该程序将打印：
+
+```
+Operning port usb4:879
+Sent to usb4:879 the message 'Message 1'
+Operning port eth1:12000
+Sent to eth1:12000 the message 'Message 2'
+Closing port eth1:12000
+Sent to usb4:879 the message 'Message 3'
+Closing port usb4:879
+```
 
 
 
