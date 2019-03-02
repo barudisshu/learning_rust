@@ -141,6 +141,204 @@ Sent to usb4:879 the message 'Message 3'
 Closing port usb4:879
 ```
 
+第二条语句声明新的类型CommunicationChannel用于实现`Drop`。这个trait有一个特有的方法`drop`，它会在对象被回收时自动被调用，因此它是一个“destructor”。通常，给一个类型创建一个销毁器，为该类型实现这个`Drop`trait即可。因为任何没有被定义的trait，不能在程序外部实现。
+
+第三条语句是一个语句块，为结构体定义了两个方法：`create`构造器，`send`方法。
+
+最后是应用代码。创建了一个CommunicationChannel，这个创建会打印一行内容。接着调用了send方法，打印第二行内容。接着是内嵌语句块，创建了另一个channel，打印第三、四行内容。
+
+嵌套语句块内的变量名跟存在的变量名相同，这会导致变量投影(shadow)。
+
+接着嵌套语句结束。这发生率内部变量被销毁，因此它的`drop`方法被调用，于是打印第五行。
+
+现在，嵌套语句块结束后，第一个变量再次可见。`send`方法再次调用，打印一行。
+
+最后，变量被销毁，打印最后一行。
+
+在Rust中，内存早已由语言和标准库释放掉了，因此没有必要像C语言那样调用`free`函数，或像C++那样调用`delete`。但其他资源不会自动释放。因此销毁器(destructor)对于那些副作用的实现非常有用：诸如文件处理，通讯处理，GUI窗口，图形资源等，标准库中早已为资源的处理的任何类型提供了`Drop`实现。
+
+销毁器可以更好地理解内存的管理。
+
+```rust
+struct S ( i32 );
+impl Drop for S {
+	fn drop(&mut self) {
+		println!("Dropped {}", self.0);
+	}
+}
+let _a = S (1);
+let _b = S (2);
+let _c = S (3);
+{
+	let _d = S (4);
+	let _e = S (5);
+	let _f = S (6);
+	println!("INNER");
+}
+println!("OUTER");
+```
+
+结果打印：
+
+```
+INNER
+Dropped 6
+Dropped 5
+Dropped 4
+OUTER
+Dropped 3
+Dropped 2
+Dropped 1
+```
+
+注意到对象的销毁的顺序跟构造顺序相反，
+
+```rust
+struct S ( i32 );
+impl Drop for S {
+	fn drop(&mut self) {
+		println!("Dropped {}", self.0);
+	}
+}
+let _ = S (1);
+let _ = S (2);
+let _ = S (3);
+{
+	let _ = S (4);
+	let _ = S (5);
+	let _ = S (6);
+	println!("INNER");
+}
+println!("OUTER");
+```
+
+结果将打印：
+
+```
+Dropped 1
+Dropped 2
+Dropped 3
+Dropped 4
+Dropped 5
+Dropped 6
+INNER
+OUTER
+```
+
+因为只有占位符，因此所有对象都是临时的。临时对象在它们语句结束位置就销毁了，即统计到分号(`;`)立即销毁。
+
+上面的程序和下面的是等价的，
+
+```rust
+struct S ( i32 );
+impl Drop for S {
+	fn drop(&mut self) {
+		println!("Dropped {}", self.0);
+	}
+}
+s (1);
+S (2);
+S (3);
+{
+	S (4);
+	S (5);
+	S (6);
+	println!("INNER");
+}
+println!("OUTER");
+```
+
+## Assignment Semantics
+
+下面程序做了什么？
+
+```rust
+let v1 = vec![11, 22, 33];
+let v2 = v1;
+```
+
+概念上，
+
+首先，`v1`的标头(header)被分配到了栈。然后，`v1`的内容，会在堆为该内容分配一个缓冲区，`v1`的元素之被拷贝到这个缓冲区。然后标头(header)被初始化，作为引用指向新分配的堆缓冲。
+
+然后，`v2`的标头被分配在栈。接着，用`v1`的值初始化`v2`。但，这是如何实现的？
+
+通常至少有三种方式实现这种操作：
+
+- **`Share semantics`**：`v1`的标头被拷贝到`v2`的标头，其它不发生任何操作。因此，可以用`v1`，也可以用`v2`，它们都同时指向相同的堆缓冲区；因此，它们指向同样的内容，不是相等的，而是唯一的。这种术语的常见于垃圾回收语言，比如Java。
+
+- **`Copy semantics`**：分配另外的堆缓冲。它和`v1`使用的缓冲区有同样的大小，并将先存的缓冲区内容拷贝到新的缓冲区。然后`v2`的标头被初始化指向新分配的缓冲区。因此，两个变量指向两个不同的缓冲区并且初始化的内容相同。这种实现，是C++的默认机制。
+
+- **`Move semantics`**：`v1`的标头被拷贝到`v2`的标头，其它不发生任何操作。因此，`v2`可以使用，它的标头指向原先`v1`分配的堆缓冲区，但`v1`不能再被使用。这种实现，是Rust的默认机制。
+
+```rust
+let v1 = vec![11, 22, 33];
+let v2 = v1;
+print!("{}", v1.len());
+```
+
+该代码产生编译错误：“use of moved value: `v1`”。当`v1`的值指派给`v2`是，变量`v1`终止并退出。再次使用是不被编译器允许的。
+
+先看看，为什么Rust不实现**share semantics**。首先，如果变量是可变的，这种语义(semnatics)会有几分迷惑。在共享术语(share semantics)，通过一个变量更改一个条目，这个条目也可以被其它变量更改和访问。这不是直觉，可能是bug的根源。因此，共享术语(share senantics)仅在只读数据(read-only data)能被接收。
+
+但这里有个大问题，对于内存回收。如果使用共享术语，`v1`和`v2`都将会拥有同一个单一的数据缓冲区，因此当他们被回收时，同样的堆缓冲区会被回收两次。一个缓冲区不能被分配两次，而不导致内存损耗以及引起程序崩溃(program malfunction)。要解决这个问题，语言本身需要在scope结束时不对变量使用的内进行回收，而是凭借GC处理。
+
+相反，拷贝语义(copy semantics)和移动语义(move semantics)都是正确的。实际上，Rust规则上把回收看做是任何对象必须有且仅有一个owner。当使用拷贝语义时，原来的vector缓冲区还是原来的owner，即变量`v1`的标头，新创建的缓冲区，有新的owner引用，即`v2`的标头。另一方面，当使用移动语义时，原来单一vector缓冲区更改它的owner：分配之前，缓冲区的所有者是`v1`的标头reference，分配之后，所有者更改为`v2`的标头reference。在分配之前，`v2`的标头并不存在，分配之后，`v1`的标头不再存在。
+
+那为什么Rust不实现拷贝语义(copy semantics)？
+
+实际上，某些情况下，使用拷贝语义更合适，另一些情况下，使用移动语义更适合。甚至C++，从2011年开始，允许同时拷贝语义和移动语义。
+
+```cpp
+#include <iostream>
+#include <vector>
+int main() {
+	auto v1 = std::vector<int> {11, 22, 33};
+	const auto v2 = v1;
+	const auto v3 = move(v1);
+	std::count << v1.size() << " " << v2.size() << " " << v3.size();
+}
+```
+
+这段C++程序会打印：0 3 3。`v1`首先被拷贝到`v2`，然后移动到`v3`。C++标准函数`move`会清空vector但不会让其undefined。因此，在最后，`v2`有三个元素的拷贝，`v3`就是原来的`v1`，`v1`变为空。
+
+Rust中也允许拷贝语义和移动语义。
+
+```rust
+let v1 = vec![11, 22, 33];
+let v2 = v1.clone();
+let v3 = v1;
+// ILLEGAL: print!("{} ", v1.len());
+print!("{} {}", v2.len(), v3.len());
+```
+
+将会打印：3 3。
+
+这段程序和C++类似，但不能再访问`v1`了，因为它被移动了。因为C++的默认语义是拷贝语义(copy semantics)，所以需要调用`move`标准函数来进行对象移动；而Rust的默认语义是移动语义(move semantics)，所以需要调用标准函数`clone`进行拷贝。
+
+另外，`v1`虽已被移动，但仍然可访问，只不过内容为空，Rust中被移动的变量不可再被访问。
+
+## Copying vs. Moving Performance
+
+Rust偏向于移动语义的选择是从性能方面考量的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
