@@ -320,7 +320,218 @@ print!("{} {}", v2.len(), v3.len());
 
 ## Copying vs. Moving Performance
 
-Rust偏向于移动语义的选择是从性能方面考量的。
+Rust偏向于移动语义的选择是从性能方面考量的。对于拥有堆缓冲区的对象，比如vector，移动比拷贝要快，因为移动的仅是header，然而如果是拷贝一个vector，要求分配和初始化一个可能的堆缓冲区，它最终会被回收。
+
+在C++中，被移动的对象意味着不在被使用了，但语言为了对遗留代码做后向兼容(backward-compatible)，被移动的对象仍然可以访问，这可能会给开发者再次使用该对象的机会。另外，清空一个被移动的vector有较小的消耗，即当一个vector被销毁，会检测它是否为空，这也有较小消耗。Rust被设计避免手动移动对象，因此不会有不正当的移动vector，因为编译器知道vector被移动了，可以产生更好的代码。
+
+我们可以通过下面代码度量性能的影响，这并不简单，因为编译优化器会移除loop内的工作。
+
+下面代码使用了拷贝语义。
+
+```rust
+use std::time::Instant;
+fn elapsed_ms(t1: Instant, t2: Instant) -> f64 {
+    let t = t2 - t1;
+    t.as_secs() as f64 * 1000. + t.subsec_nanos() as f64 / 1e6
+}
+const N_ITER: usize = 100_000_000;
+let start_time = Instant::now();
+for i in 0..N_ITER {
+	let v1 = vec![11, 22];
+	let mut v2 = v1.clone();    // Copy semantics is used
+	v2.push(i);
+	if v1[1] + v2[2] == v2[0] {
+		print!("Error");
+	}
+}
+let finish_time = Instant::now();
+print!("{} ns per iteration\n", elapsed_ms(start_time, finish_time) * 1e6 / N_ITER as f64);
+```
+
+下面是C++的等价实现，
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <ctime>
+int main() {
+	const int n_iter = 100000000;
+	auto start_time = clock();
+	for (int i = 0; i < n_iter; ++i) {
+		auto v1 = std::vector<int> { 11, 22 };
+		auto v2 = v1;	// Copy semantics is used
+		v2.push_back(i);
+		if (v2[1] + v2[2] = v2[0]) { std::cout << "Error"; }
+	}
+	auto finish_time = clock();
+	std::cout << (finish_time - start_time) * 1.e9 / CLOCKS_PER_SEC / n_iter << " ns per iteration\n";
+}
+```
+
+下面Rust程序使用了移动术语，
+
+```rust
+use std::time::Instant;
+fn elapsed_ms(t1: Instant, t2: Instant) -> f64 {
+    let t = t2 - t1;
+    t.as_secs() as f64 * 1000. + t.subsec_nanos() as f64 / 1e6
+}
+const N_ITER: usize = 100_000_000;
+let start_time = Instant::now();
+for i in 0..N_ITER {
+	let v1 = vec![11, 22];
+	let mut v2 = v1;    // Move semantics is used
+	v2.push(i);
+	if v1[1] + v2[2] == v2[0] {
+		print!("Error");
+	}
+}
+let finish_time = Instant::now();
+print!("{} ns per iteration\n", elapsed_ms(start_time, finish_time) * 1e6 / N_ITER as f64);
+```
+
+C++的等价实现为，
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <ctime>
+int main() {
+	const int n_iter = 100000000;
+	auto start_time = clock();
+	for (int i = 0; i < n_iter; ++i) {
+		auto v1 = std::vector<int> { 11, 22 };
+		auto v2 = move(v1);	// Move semantics is used
+		v2.push_back(i);
+		if (v2[1] + v2[2] = v2[0]) { std::cout << "Error"; }
+	}
+	auto finish_time = clock();
+	std::cout << (finish_time - start_time) * 1.e9 / CLOCKS_PER_SEC / n_iter << " ns per iteration\n";
+}
+```
+
+下面是编译优化后的大致的时间损耗，
+
+|                 |  Rust  |  C++  |
+|-----------------|--------|-------|
+| Copy semantics  |  157   |  87   |
+| Move semantics  |  67    |  67   |
+
+不管是在C++还是Rust中，移动术语都要比拷贝术语要快。在这方面，移动术语两者都差不多，拷贝术语方面C++要比Rust好很多。
+
+## Moving and Destroying Objects
+
+所有这些概念不单是对vector，任何有缓冲区引用的对象都适用，譬如`String`或`Box`。
+
+```rust
+let s1 = "abcd".to_string();
+let s2 = s1.clone();
+let s3 = s1;
+// ILLEGAL: print!("{} ", s1.len());
+print!("{} {}", s2.len(), s3.len());
+```
+
+这和C++类似，
+
+```cpp
+#include <iostream>
+#include <string>
+int main() {
+	auto s1 = std::string { "abcd" };
+	const auto s2 = s1;
+	const auto s3 = move(s1);
+	std::cout << s1.size() << " " << s2.size() << " " << s3.size();
+}
+```
+
+前面说过，被移动的对象不能再访问，因此`s1`访问时会导致编译错误；而对于C++，原来的`s1`会置为空，所以会输出0 4 4。
+
+对于`Box`类型，
+
+```rust
+let i1 = Box::new(12345i16);
+let i2 = i1.clone();
+let i3 = i1;
+// ILLEGAL: print!("{} ", i1);
+print!("{} {}", i2, i3);
+```
+
+对应的C++，
+
+```cpp
+#include <iostream>
+#include <memory>
+int main() {
+	auto i1 = std::unique_ptr<short> {
+		new short(12345)
+	};
+	const auto i2 = std::unique_ptr<short> {
+		new short(*i1)
+	};
+	const auto i3 = move(i1);
+	std::cout << (bool)i1 << " " << (bool)i2 << " " << (bool)i3 << " " << *i2 << " " << *i3;
+}
+```
+
+Rust程序会输出12345 12345，任何访问`i1`都会导致编译错误。C++会输出0 1 1 12345 12345。因为仅`i1`是null，它被移动到`i3`了。
+
+仅当他们被用于初始化一个变量，给一个有值的变量重新赋值，对象不被移动，
+
+```rust
+let v1 = vec![false; 3];
+let mut v2 = vec![false; 2];
+v2 = v1;
+v1;
+```
+
+以及给函数参数传递值时，
+
+```rust
+fn f(v2: Vec<bool>) {}
+let v1 = vec![false; 3];
+f(v1);
+v1;
+```
+
+以及指派的对象在当前没有实际堆分配时，
+
+```rust
+let v1 = vec![false; 0];
+let mut v2 = vec![false; 0];
+v2 = v1;
+v1;
+```
+
+编译上面任何三条程序，最后一个语句都会导致“use of a moved value”的编译错误，
+
+尤其是，在程序最后，`v1`被移动到`v2`，即使他们都为空，因此它们没有堆空间被使用。为什么？因为移动规则由编译器提供，因此它在运行期必须是独立的内容。
+
+下面的代码，最后一行也会导致编译错误，
+
+```rust
+struct S {}
+let s1 = S {};
+let s2 = s1;
+s1;
+```
+
+编译器可以确切知道这个引用不会指向heap，但仍然编译报错。为什么Rust不为该类型使用拷贝语义？
+
+它的基本原理是这样的。用户定义的类型`S`现在没有引用内存，但在将来软件维护的时候，指向堆的引用可能会被添加，即`S`可能会被作为字段(field)等。因此，如果为`S`实现了拷贝语义，当程序源被更改，一个`String`、`Box`、或集合，直接或间接地添加到`S`，会导致很多错误。因此，作为规则，最后保留移动语义。
+
+## Need for Copy Semantics
+
+我们看到很多类型使用移动语义，包括vector，动态字符串，boxes，结构体... 下面的程序是合法的，
+
+```rust
+let i1 = 123;
+let _i2 = i1;
+let s1 = "abc";
+let _s2 = s1;
+let r1 = &i1;
+let _r2 = r1;
+print!("{} {} {}", i1, s1, r1);
+```
 
 
 
