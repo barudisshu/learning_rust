@@ -1,19 +1,5 @@
 fn main() {
-    let a1 = 123;
-    let b1 = a1.clone();
-    let c1 = b1;
-    print!("{} {} {}", a1, b1, c1);
-
-    let a2 = Vec::<bool>::new();
-    let b2 = a2.clone();
-    let c2 = b2;
-    print!(" {:?}", a2);
-    // ILLEGAL: print!(" {:?}", b2);
-    print!(" {:?}", c2);
-
-    let a3 = std::fs::File::open(".").unwrap();
-    // ILLEGAL: let b3 = a3.clone();
-    let c3 = a3;
-    // ILLEGAL: print!(" {:?}", a3);
-    print!(" {:?}", c3);
+    let mut n = 12;
+    let ref1_to_n = &mut n;
+    let ref2_to_n = &n;
 }
