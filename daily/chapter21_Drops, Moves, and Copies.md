@@ -566,39 +566,135 @@ print!("{} {} {}", i1, s1, r1);
 因此，这三种可以文字描述为如下：
 
 - 对象实现了`Copy`和`Clone`的，包含拷贝语义，也可以显式克隆。例如原生类型。
-- 
+- 对象实现了`Clone`，但没有实现`Copy`的，它们实现了移动语义，可以显式克隆。例如集合类型。
+- 既没有实现`Copy`，也没有实现`Clone`的，属于不可复制，它们实现了移动语义，例如文件处理等。
+- 没有对象是实现了`Copy`，却没有`Clone`的。这意味着对象的拷贝是隐式的，却不能显式调用，这是无意义的。
 
+下面例子展示所有的情况，
 
+```rust
+let a1 = 123;
+let b1 = a1.clone();
+let c1 = b1;
+print!("{} {} {}", a1, b1, c1);
 
+let a2 = Vec::<bool>::new();
+let b2 = a2.clone();
+let c2 = b2;
+print!(" {:?}", a2);
+// ILLEGAL: print!(" {:?}", b2);
+print!(" {:?}", c2);
 
+let a3 = std::fs::File::open(".").unwrap();
+// ILLEGAL: let b3 = a3.clone();
+let c3 = a3;
+// ILLEGAL: print!(" {:?}", a3);
+print!(" {:?}", c3);
+```
 
+结果打印：“`123 123 123 [] [] File`”。
 
+此处三处注释的地方是不合法的语句。
 
+首先，`a1`是原生类型，所以这种类型可以隐式拷贝，也可以显式克隆(clone)。所以此处三个对象有同样的值，并打印输出。
 
+因为`a2`是一个集合类型，这种类型可以克隆，但不能拷贝，所以`b2`可以通过`a2`显式克隆，对`b2`到`c2`的赋值是移动语义，`b2`不可再访问。
 
+对于`a3`而言，它是一个文件handle，这种类型不能被克隆，尝试编译`a3.clone()`会出现编译错误，以及对`a3`到`c3`的赋值是移动语义，对象被移动了，`a3`不可再访问。
 
+## Making Types Cloneable or Copyable
 
+前面说过，枚举，结构体，元组-结构体，默认都没有实现`Copy`和`Clone`。因此它是不可克隆的。因此，你可能需要仅实现`Clone`，又或`Copy`和`Clone`都需要有。
 
+下面代码是不合法的，
 
+```rust
+struct S {}
+let s = S {};
+s.clone();
+```
 
+所以你会为其实现`Clone`，
 
+```rust
+struct S {} 
+impl Clone for S {
+	fn clone(&self) -> Self { Self {} }
+}
+let s = S {};
+s.clone();
+```
 
+这些实现写法，在前面面向对象编程介绍过，你需要为其实现`clone`方法，
 
+另外，实现的`Clone`方法，不能隐式使用拷贝语义，所以下面代码是不合法的，
 
+```rust
+struct S {}
+impl Clone for S {
+	fn clone(&self) -> Self { Self {} }
+}
+let s = S {};
+s.clone();
+let _s2 = s;
+s;
+```
 
+所以，你需要实现`Copy`，使其合法，
 
+```rust
+struct S {}
+impl Clone for S {
+	fn clone(&self) -> Self { Self {} }
+}
+impl Copy for S {}
+let s = S {};
+s.clone();
+let _s2 = s;
+s;
+```
 
+主要到`Copy`的实现可以为空；只要声明了`Copy`的实现，拷贝语义就激活了。
 
+下面写法却是不合法的，
 
+```rust
+struct S {}
+impl Copy for S {}
+```
 
+编译器会抱怨：“`the trait bound `main::S:std::clone::Clone` is not satisfied`”。`Copy`的实现，前提条件是`Clone`也实现了，
 
+但下面写法也是不合法的，
 
+```rust
+struct S { x: Vec<i32> }
+impl Copy for S {}
+impl Clone for S {
+	fn clone(&self) -> Self { * self }
+}
+```
 
+编译产生错误信息，“the trait `Copy` may not be implemented for this type”。告诉你`Vec<i2>`类型没有实现`Copy`。
 
+Rust允许实现`Copy`，仅能允许其类型是包含可拷贝对象的，因为拷贝对象，意味着会拷贝它的所有成员(members)。这里，`Vec`没有实现`Copy`，所以`S`也不能实现拷贝语义。
 
+相反，下面代码是合法的，
 
+```rust
+struct S { x: Vec<i32> }
+impl Clone for S {
+	fn clone(&self) -> Self {
+		S { x: self.x.clone() }
+	}
+}
+let mut s1 = S { x: vec![12] };
+let s2 = s1.clone();
+s1.x[0] += 1;
+print!("{} {}", s1.x[0], s2.x[0]);
+```
 
+结果将打印：“13 12”。
 
-
-
+这里，`S`结构体不是可拷贝的，但却是可克隆的(clonable)，因为它实现了`Clone`。因此，`s1`可以对`s2`赋值。`s1`被修改，两者输出内容不同。
 
