@@ -45,16 +45,128 @@ let ref2_to_n = &n;
 
 ## Object Lifetimes
 
+注意到，“作用域，scope”的概念作用于编译期的变量，而不是运行期的对象。对应运行期对象的概念叫“生命周期，lifetime”。在Rust中，一个对象的生命周期，指的是一系列执行指令，从执行指令的创建，到执行指令的销毁。在该时间段，该对象叫做“存活，to live，to be alive”。
 
+当然，作用域和生命周期存在一定关系，但它们不是同一个概念。例如：
 
+```rust
+let a;
+a = 12;
+print!("{}", a);
+```
 
+该程序中，变量`a`的作用域开始于第一行，而`a`拥有的对象的生命周期开始于第二行。通常认为，变量`a`的作用域开始于它的声明，对象的生命周期开始于该对象接收一个值。
 
+即使是变量作用域(scope)的结束，跟对象生命周期(lifetime)的结束也不是同时发生的，
 
+```rust
+let mut a = "Hello".to_string();
+let mut b = a;
+print!("{}, ", b);
+a = "world".to_string();
+print!("{}!", a);
+b = a;
+```
 
+结果将输出：“Hello, world!”。
 
+在第一条语句，变量`a`被声明以及初始化。因此`a`的作用域开始，接着`a`拥有的对象被创建，`a`的生命周期开始。
 
+在第二条语句，变量`b`被声明，由`a`移动对象进行初始化。因此，`b`的作用域开始，`a`的作用域被悬挂(suspended)，因为它被移动了，所以它不可再被访问。`b`拥有的对象不用创建，因为它就是先前创建的对象。
 
+在第三条语句，`b`被访问。
 
+在第四条语句，变量`a`通过`new`构造器，指派新的值。这里，`a`恢复(resume)它的作用域(scope)，因为它的作用域还没有结束。一个新的对象被创建，该对象的生命周期开始。前面由于变量`a`被“移动”了，所以它不“拥有”任何对象。所以这里的语句类似于一个初始化。
+
+在第五条语句，`a`(拥有对象)可被访问了。
+
+在第六条语句，`a`再次被移动到`b`，它的作用域再次被悬挂(suspended)。相反，`b`一直是活动的(active)，它拥有的对象由移动的`a`替换，因此，原先的对象在这里被销毁，以及生命周期结束。如果该对象实现了`Drop`，在这里，它的`drop`方法会被调用。
+
+最后，`b`和`a`陆续退出它们的作用域。变量`b`拥有一个对象，该对象被销毁，以及结束它的生命周期。相反，变量`a`被“移动”了，不再拥有任何对象，也就不会有销毁对象的发生。
+
+## Errors Regarding Borrowing
+
+C和C++程序编写总是被各种错误困扰，而Rust则通过设计来避免这一类问题。Rust的一种常见错误是“use after move”，前面介绍过。另一种错误如下，
+
+```rust
+let ref_to_n;
+{
+    let n = 12;
+    ref_to_n = &n;
+    print!("{} ", *ref_to_n);
+}
+print!("{}", *ref_to_n);
+```
+
+首先，变量`ref_to_n`被声明，但没有被初始化。然后，在语句块内，可变变量`n`被声明并初始化，它分配一个数在栈上，值为12。
+
+然后，原先的变量，用一个指向`n`的引用进行初始化，它租借(borrow)了这个对象。
+
+接着，变量`ref_to_n`指向的对象，即值为12的对象，打印输出。
+
+接着，语句块结束，内部变量`n`结束了它的作用域，它的对象被销毁。
+
+接着，变量`ref_to_n`指向的对象再次被打印。但该对象原先被`n`“拥有”，它现在不存在了！
+
+幸运的是，Rust编译器拒绝该代码，产生错误信息“`n` does not live long enough”。该消息表示，变量`n`死了(dying)，但仍然有指向它“拥有”的对象的引用，它应该活更长一些；至少应该跟租借它对象的租借方一样长。
+
+顺便，C或C++对应的代码如下，
+
+```c
+#include <stdio.h>
+int main() {
+    int* ref_to_n;
+    {
+        int n = 12;
+        ref_to_n &n;
+        printf("%d ", *ref_to_n);
+    }
+    printf("%d", *ref_to_n);
+    return 0;
+}
+```
+
+这段程序可被C和C++编译器接受。结果会打印“12”，之后的行为会变得不可预测。
+
+这类程序错误，我们称之为“use after drop”。
+
+有另一种可避免的Rust错误，
+
+```rust
+let mut v = vec![12];
+let ref_to_first = &v[0];
+v.push(13);
+print!("{}", ref_to_first);
+```
+
+对应的C语言实现是，
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+int main() {
+    int* v = malloc(1 * sizeof (int));
+    v[0] = 12;
+    const int* ref_to_first = &v[0];
+    v = realloc(v, 2 * sizeof (int));
+    v[1] = 13;
+    printf("%d", *ref_to_first);
+    free(v);
+}
+```
+
+以及C++的实现是，
+
+```cpp
+#include <iostream>
+#include <vector>
+int main() {
+    std::vector<int> v { 12 };
+    const int& ref_to_first = v[0];
+    v.push_back(13);
+    std::cout << ref_to_first;
+}
+```
 
 
 

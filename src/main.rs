@@ -1,5 +1,8 @@
 fn main() {
-    let mut n = 12;
-    let ref1_to_n = &mut n;
-    let ref2_to_n = &n;
+    let mut a = "Hello".to_string();
+    let mut b = a;
+    print!("{}, ", b);
+    a = "world".to_string();
+    print!("{}!", a);
+    b = a;
 }
