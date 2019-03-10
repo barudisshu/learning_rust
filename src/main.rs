@@ -1,8 +1,6 @@
 fn main() {
-    let mut a = "Hello".to_string();
-    let mut b = a;
-    print!("{}, ", b);
-    a = "world".to_string();
-    print!("{}!", a);
-    b = a;
+    let mut v = vec![12];
+    let ref_to_first = &v[0];
+    v.push(13);
+    print!("{}", ref_to_first);
 }
