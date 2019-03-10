@@ -182,7 +182,274 @@ int main() {
 
 我们将这类编程错误命名为“use after change by an alias”。
 
+
 ## How to Prevent "Use After Drop" Errors
+
+Rust防止使用“脱落，dropped”对象的技术是简单的。
+
+把该对象看做是被一个变量指向，遵循栈分配的规则，会按照变量声明的反向顺序被脱落，而不是初始化的反向顺序。
+
+```rust
+struct X(char);
+impl Drop for X {
+	fn drop(&mut self) {
+		print!("{}", self.0);
+	}
+}
+let _a = X('a');
+let _b;
+let _c = X('c');
+_b = X('b');
+```
+
+该程序会打印“cba”。这三个对象按照顺序“acb”被构造，但三个对象的分配顺序是“abc”，因此回收以及脱落的按相反的顺序。
+
+为了避免使用脱落对象，所有变量，租借其它变量拥有的对象，必须在该变量的 **后面** 声明。
+
+例如，
+
+```rust
+let n = 12;
+let mut _r;
+let m = 13;
+_r = &m;
+_r = &n;
+```
+
+这段代码会产生错误信息：“`m` does not live long enough”。这是因为`_r`同时从`m`和`n`进行borrow，虽然不在同一时刻指向两者，但它在`m`之前声明了。要更正这段代码，改为如下，
+
+```rust
+let n = 12;
+let m = 13;
+let mut _r;
+_r = &m;
+_r = &n;
+```
+
+这段代码是合法的，当`m`和`n`拥有的对象被dropped时，不会再有指向它们的引用。
+
+## How to Prevent "Use After Change by an Alias" Errors
+
+由于其它变量引起对象的改变，导致当前变量使用该对象出现错误。要避免这种错误，使用的规则有几分复杂。
+
+首先，要求考虑任何语句会读这个对象，不会有写操作，就像是该对象的一个 __临时不可变租借(temporary immutable borrowing)__；任何语句变更这个对象，就像是该对象的一个 __临时可变租借(temporary mutable borrowing)__。这种租借的出现和结束在该语句的内部进行。
+
+然后，租借开始于，获取指向该对象的引用，并分配给一个变量；结束于，该变量的作用域(scope)结束。
+
+下面是一个例子，
+
+```rust
+let a = 12;
+let mut b = 13;
+print!("{} ", a);
+{
+	let c = &a;
+	let d = &mut b;
+	print!("{} {} ", c, d);
+}
+b += 1;
+print!("{}", b);
+```
+
+结果会打印：“12 12 13 14”。
+
+在第3行和最后一行，一个可变租借开始并结束。在第5行，一个不可变租借开始，第6行，一个可变租借开始；它们在语句块末尾结束。在第9行，一个可变租借开始并结束。
+
+这种规则要求，同一时刻，可变租借(即，&mut )的出现不能和其它租借并存。
+
+换句话说，同一时刻：
+
+- 没有租借
+- 或，一个单一的可变(mutable)租借
+- 或，一个单一的不可变(immutable)租借
+- 或，几个不可变(immutable)租借
+
+不能有：
+
+- 几个可变(mutable)租借
+- 不能有一个单一的可变(mutable)租借和一个或多个不可变(immutable)租借
+
+
+## Listing the Possible Cases of Multiple Borrowings
+
+下面罗列六种允许的情况。
+
+第一种：
+
+```rust
+let a = 12;
+let _b = &a;
+let _c = &a;
+```
+
+有两个不可变租借，直到结束为止被持有。
+
+第二种：
+
+```rust
+let mut a = 12;
+let _b = &a;
+print!("{}", a);
+```
+
+第三种：
+
+```rust
+let mut a = 12;
+a = 13;
+let _b = &a;
+```
+
+一个不可变租借，紧随后一个临时可变租借。
+
+第四种：
+
+```rust
+let mut a = 12;
+a = 13;
+let _b = &mut a;
+```
+
+一个可变租借，紧随后一个临时可变租借。
+
+第五种：
+
+```rust
+let mut a = 12;
+print!("{}", a);
+let _b = &a;
+```
+
+一个不可变租借，紧随后一个临时不可变租借。
+
+第六种：
+
+```rust
+let mut a = 12;
+print!("{}", a);
+let _b = &mut a;
+```
+
+一个可变租借，紧随后一个临时不可租借。
+
+下面是六种不合法情况。
+
+第一种：
+
+```rust
+let mut a = 12;
+let _b = &mut a;
+let _c = &a;
+```
+
+编译出错“cannot borrow `a` as immutable because it is also borrowed as mutable”。
+
+第二种：
+
+```rust
+let mut a = 12;
+let _b = &a;
+let _c = &mut a;
+```
+
+编译出错“cannot borrow `a` as mutable because it is also borrowed as immutable”。
+
+第三种：
+
+```rust
+let mut a = 12;
+let _b = &mut a;
+let _c = &mut a;
+```
+
+编译出错“cannot borrow `a` as mutable more than once at a time”。
+
+第四种：
+
+```rust
+let mut a = 12;
+let _b = &a;
+a = 13;
+```
+
+编译出错“cannot assign to `a` because it is borrowed”。
+
+第五种：
+
+```rust
+let mut a = 12;
+let _b = &mut a;
+a = 13;
+```
+
+编译出错“cannot assign to `a` because it is borrowed”。
+
+第六种：
+
+```rust
+let mut a = 12;
+let _b = &mut a;
+print!("{}", a);
+```
+
+编译出错“cannot borrow `a` as immutable because it is also borrowed as mutable”。
+
+梳理一下。对于当前尚未被borrowed的对象来说，允许的操作是：
+
+1. 仅可被不可变租借(immutablely borrowed)数次，然后可以由所有者(owner)和任何租借方(borrower)读取。
+2. 仅可被可变租借(mutably borrowed)一次，然后有且仅能由这个租借方(borrower)读取和修改。
+
+
+## Using a Bock to Restrict Borrowing Scope
+
+当一个对象的租借结束后，对象对其它租借又变得可用了。任何类型的租借都可限制在语句块内。
+
+```rust
+let mut a = 12;
+{
+	let b = &mut a;
+	*b += 1;
+}
+let c = &mut a;
+*c += 2;
+```
+
+这是允许的，因为租借发生在第三行，语句块结束后，租借也结束了，因此第7行的`a`可以用于其它租借。
+
+类似地，对于函数也一样，在函数结束后，对象再次变得可用。
+
+```rust
+let mut a = 12;
+fn f*b: &mut i32) {
+	*b += 1;
+}
+f(&mut a);
+let c = &mut a;
+*c += 2;
+```
+
+这种规则，适用于Rust确保可以自动地决定内存的回收，避免不合法的引用；这种规则允许Rust实现无数据竞争(data-race-free)的并发编程。
+
+
+## The Need of Lifetime Specifiers for Returned References
+
+先看这段代码：
+
+```rust
+let v1 = vec![11u8, 22];
+let result;
+{
+	let v2 = vec![33u8];
+	result = {
+		let _x1: &Vec<u8> = &v1;
+		let _x2: &Vec<u8> = &v2;
+		_x1
+	}
+}
+print!("{:?}", *result);
+```
+
+
 
 
 
