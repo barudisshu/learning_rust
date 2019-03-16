@@ -1,13 +1,6 @@
+trait Tr {
+    fn f<'a,'b, T1, T2>(flag: bool, b: &'a T1, c: (char, &'b i32)) -> (&'b i32, f64, &'a T2);
+}
 fn main() {
-    let v1 = vec![11u8, 22];
-    let result;
-    {
-        let v2 = vec![33u8];
-        result = {
-            let _x1: &Vec<u8> = &v1;
-            let _x2: &Vec<u8> = &v2;
-            _x1
-        }
-    }
-    print!("{:?}", *result);
+
 }
