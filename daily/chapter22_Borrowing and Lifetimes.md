@@ -604,6 +604,29 @@ trait Tr {
 
 ## Checking the Validity of Lifetime Specifiers
 
+编译任何函数时，borrow checker有两个工作：
+
+- 通过函数自身和函数体，检查函数签名是否有效。
+- 检查函数体是否合法，统计该函数被调用次数。
+
+本小节，先看第一种情况。
+
+如果函数返回值没有引用类型，borrow checker不做任何处理。
+
+否则，每个返回值引用，必须检查是否有正确的生命周期指示器(lifetime specifier)。
+
+这样一个指示器(specifier)可以是“`'static`”。这种情况，引用必须指向一个静态对象。
+
+```rust
+static FOUR: u8 = 4;
+fn f() -> (bool, &'static u8, &'static str, &'static f64) {
+    (true, &FOUR, "Hello", &3.14)
+}
+print!("{} {} {} {}", f().0, *f().1, f().2, *f().3);
+```
+
+
+
 
 
 
