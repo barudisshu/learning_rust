@@ -449,7 +449,7 @@ let result;
 print!("{:?}", *result);
 ```
 
-结果将会输出：“[11, 22]”。
+结果将会输出：“`[11, 22]`”。
 
 变量`v1`和`v2`各自拥有vector。接着被两个引用borrowed了，分别被`_x1`和`_x2`拥有。因此，在第7行后，`_x1`租借了变量`v1`拥有的vector，`_x2`租借了变量`v2`拥有的vector。这是被允许的，因为`_x1`在`v1`之后声明，`_x2`在`v2`之后声明，这些引用比它们租借对象存活时间短。
 
@@ -625,32 +625,176 @@ fn f() -> (bool, &'static u8, &'static str, &'static f64) {
 print!("{} {} {} {}", f().0, *f().1, f().2, *f().3);
 ```
 
+结果将会打印：“`true 4 Hello 3.14`”。该程序是合法的，因为三个返回值的引用都是静态对象。
+
+相反，下面
+
+```rust
+fn f(n: &u8) -> &'static u8 {
+	n
+}
+print!("{}", *f(&12));
+```
+
+将会生成编译错误：“lifetime of reference outlives lifetime of borrowed content...”。这是不合法的，返回值不是一个指向静态对象的引用；它实际上是接收参数的值，该返回值租借了函数参数引用对象的同一个对象。
+
+生命周期指示器可以定义成列表的形式，如下
+
+```rust
+fn f<'a, 'b>(x: &'a i32, y: &'b i32) -> (&'b i32, bool, &'a i32) {
+	(y, true, x)
+}
+let i = 12;
+let j = 13;
+let r = f(&i, &j);
+print!("{} {} {}", *r.0, r.1, *r.2);
+```
+
+结果将打印：“13 true 12”。这是有效的，因为tuple中返回的第一个字段引用的时`y`表达式的值，以`y`参数和返回值的第一个字段有同样的生命周期指示器(lifetime specifier)；它们的生命周期指示器都是`'b`。返回值的第三个字段和参数`x`一样有同一个生命周期指示器`'a`。
+
+相反，下面
+
+```rust
+fn f<'a, 'b>(x: &'a i32, y: &'b i32) -> (&'b i32, bool, &'a i32) {
+	(x, true, y)
+}
+let i = 12;
+let j = 13;
+let r = f(&i, &j);
+print!("{} {} {}", *r.0, r.1, *r.2);
+```
+
+会产生两个编译错误，两个错误都是：“lifetime mismatch”。实际上，返回值的第一个字段和第三个字段都有生命周期指示器，但不是对应它们函数签名。
+
+注意到，多个返回字段可能仅用了一个生命周期指示器：
+
+```rust
+fn f<'a>(x: &'a i32, y: &'a i32) -> (&'a i32, bool, &'a i32) {
+	(x, true, y)
+}
+let i = 12;
+let j = 13;
+let r = f(&i, &j);
+print!("{} {} {}", *r.0, r.1, *r.2);
+```
+
+这里，`'b`被替换为`'a`。但味道完全不一样。
+
+原来的版本是，参数列表指示了会有两个独立的生命周期；这个版本，它们共享生命周期。
+
+这个改动对于租借检查器(borrow checker)来说不简单。让我们考虑一个更复杂的函数体：
+
+```rust
+fn f<'a>(n: i32, x: &'a Vec<u8>, y: &Vec<u8>) -> &'a u8 {
+	if n == 0 { return &x[0]; }
+	if n < 0 { &x[1] } else { &x[2] }
+}
+```
+
+该函数是有效的。函数体有三个可能的表达式返回值，所有表达式都租借了参数`x`的对象。返回值有和参数等同的生命周期，所以满足borrow checker。
+
+相反，下面
+
+```rust
+fn f<'a>(n: i32, x: &'a Vec<u8>, y: &Vec<u8>) -> &'a u8 {
+	if n == 0 { return &x[0]; }
+	if n < 0 { &x[1] } else { &y[2] }
+}
+```
+
+一个可能的返回值，会是表达式`&y[2]`，该对象租借自`y`，这个参数没有生命周期指示器，所以该代码是不合法的。
+
+即使下面代码也是不合法的，
+
+```rust
+fn f<'a>(x: &'a Vec<u8>, y: &Vec<u8>) -> &'a u8 {
+	if true { &x[0] } else { &y[0] }
+}
+```
+
+当处理数据流分析时，编译器会探测到`y`从不被返回值租借；但borrow checker坚持因为`&y[0]`是一个可能返回值，所以该段程序被认为是无效的。
 
 
+## Using the Lifetime Specifiers of Invoked Functions
 
+上一章节的开始部分说过，borrow checker有两项工作，编译函数时进行检查函数体是否有效，统计函数体内任意被调用函数的签名。
 
+沿用上一节的代码示例。根据租借的规则，“missing lifetime specifier”表示缺少lifetime specifier，我们将原来的加上生命周期指示器，
 
+```rust
+let v1 = vec![11u8, 22];
+let result;
+{
+	let v2 = vec![33u8];
+	fn func<'a>(_x1: &'a Vec<u8>, _x2: &Vec<u8>) -> &'a Vec<u8> {
+		_x1
+	}
+	result = func(&v1, &v2);
+}
+print!("{:?}", *result);
+```
 
+第二个例子改为，
 
+```rust
+let v1 = vec![11u8, 22];
+let result;
+{
+	let v2 = vec![33u8];
+	fn func<'a>(_x1: &Vec<u8>, _x2: &'a Vec<u8>) -> &'a Vec<u8> {
+		_x2
+	}
+	result = func(&v1, &v2);
+}
+print!("{:?}", *result);
+```
 
+第一个程序是有效的，结果会打印：“`[11, 22]`”，第二个会有编译错误：“`v2` does not live long enough”。
 
+为什么`func`这些写法会产生编译错误，前面小节已经解析过了。
 
+让我们看看`main`函数在第一个程序如何工作的。当`func`被调用，存活`v1`、`result`和`v2`，按顺序声明，以及`v1`和`v2`早已被初始化。`func`的签名说结果值和第一个参数有相同的lifetime specifier，这意味着`result`的值不会存活得比`v1`长。以及，`result`在`v1`之后声明，因此它会先于`v1`销毁。
 
+再看看为什么第二段程序的`main`函数是不合法的。这里，`func`的签名说返回值和第二个参数有相同的lifetime specifier，意味着`result`存活不会比`v2`长。但`result`在`v2`之前声明，而它会在其后被销毁。
 
+这是因为只使用了一个lifetime specifiter，下面改为两个指示器，
 
+```rust
+fn f<'a, 'b>(x: &'a i32, y: &'b i32) -> (&'b i32, bool, &'a i32) {
+    (x, true, y)
+}
+let i1 = 12;
+let i2;
+let j1 = 13;
+let j2;
+let r = f(&i1, &j1);
+i2 = r.0;
+j2 = r.2;
+print!("{} {} {}", *i2, r.1, *j2);
+```
 
+结果将打印“12 true 13”。
 
+相反，如果仅用一个lifetime specifier时，是不合法的，
 
+```rust
+fn f<'a>(x: &'a i32, y: &'a i32) -> (&'a i32, bool, &'a i32) {
+	(x, true, y)
+}
+let i1 = 12;
+let i2;
+let j1 = 13;
+let j2;
+let r = f(&i1, &j1);
+i2 = r.0;
+j2 = r.2;
+print!("{} {} {}", *i2, r.1, *j2);
+```
 
+这会产生编译错误：“`j1` does not live long enough”。
 
+在这两个版本中，函数`f`都会接收`i1`和`j1`的引用，首先返回变量`r`存储的值，然后分别地初始化`i2`和`j2`变量。
 
+在第一个版本中，第一个参数和返回值的第一个字段拥有相同的lifetime specifier，这导致了`i2`必须存活少于`i1`。类似地，`j2`必须存活少于`j1`。实际上，变量的声明顺序需要满足这些要求。
 
-
-
-
-
-
-
-
-
-
+第二个版本，由于只有一个lifetime specifier，所以`i2`和`j2`必须存活少于`i1`和`j1`。实际上，`i2`被声明在`j1`前，不能满足这些要求。

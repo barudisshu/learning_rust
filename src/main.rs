@@ -1,8 +1,14 @@
-trait Tr {
-    fn f<'a,'b, T1, T2>(flag: bool, b: &'a T1, c: (char, &'b i32)) -> (&'b i32, f64, &'a T2);
+fn f<'a, 'b>(x: &'a i32, y: &'b i32) -> (&'a i32, bool, &'b i32) {
+    (x, true, y)
 }
+
 fn main() {
-    let mut p = A::new();
-    test(&mut p);
-    print!("{}", p.sum());
+    let i1 = 12;
+    let i2;
+    let j1 = 13;
+    let j2;
+    let r = f(&i1, &j1);
+    i2 = r.0;
+    j2 = r.2;
+    print!("{} {} {}", *i2, r.1, *j2);
 }
