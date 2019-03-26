@@ -1,14 +1,17 @@
-fn f<'a, 'b>(x: &'a i32, y: &'b i32) -> (&'a i32, bool, &'b i32) {
-    (x, true, y)
+struct S<'a> {
+    _b: bool,
+    _ri: &'a i32,
+}
+
+fn create_s(ri: &i32) -> S {
+    S {
+        _b: true,
+        _ri: ri,
+    }
 }
 
 fn main() {
-    let i1 = 12;
-    let i2;
-    let j1 = 13;
-    let j2;
-    let r = f(&i1, &j1);
-    i2 = r.0;
-    j2 = r.2;
-    print!("{} {} {}", *i2, r.1, *j2);
+    let x: i32 = 12;
+    let _y: S;
+    _y = create_s(&x);
 }
