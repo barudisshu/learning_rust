@@ -272,6 +272,37 @@ struct _S6<'a> { _f: &'a i32 }
 
 ## Other Uses of Lifetime Specifiers
 
+我们知道，当定义一个包含引用的结构体类型时，生命周期指示器是必要的。对于元组-结构体类型也一样。
+
+```rust
+struct TS<'a>(&'a u8);
+enum E<'a, 'b> {
+    _A(&'a u8),
+    _B,
+    _C(bool, &'b f64, char),
+    _D(&'static str),
+}
+
+let byte = 34;
+let _ts = TS(&byte);
+let _e = E::_A(&byte);
+```
+
+这段代码是有效的，以及移除任何一个lifetime specifier，都会产生“missing lifetime specifier”错误。
+
+顺带一下，注意`E::_D`字段的定义。它是一个static string slice 引用。它们是 __字符串字面量(string literals)__。
+
+为了简化，我们从不在可变引用中混入指示器。实际上，它是被允许的，虽然很另类，
+
+```rust
+fn f<'a>(b: &'a mut u8) -> &'a u8 {
+    *b += 1;
+    b
+}
+let mut byte = 12u8;
+let byte_ref = f(&mut byte);
+print!("{}", *byte_ref);
+```
 
 
 

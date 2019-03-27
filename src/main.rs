@@ -1,17 +1,14 @@
-struct S<'a> {
-    _b: bool,
-    _ri: &'a i32,
-}
+struct TS<'a>(&'a u8);
 
-fn create_s(ri: &i32) -> S {
-    S {
-        _b: true,
-        _ri: ri,
-    }
+enum E<'a, 'b> {
+    _A(&'a u8),
+    _B,
+    _C(bool, &'b f64, char),
+    _D(&'static str),
 }
 
 fn main() {
-    let x: i32 = 12;
-    let _y: S;
-    _y = create_s(&x);
+    let byte = 34;
+    let _ts = TS(&byte);
+    let _e = E::_A(&byte);
 }
