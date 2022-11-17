@@ -3,3 +3,5 @@
 **/*.rs.bk
 .idea/
 Cargo.lock
+**/*.exe
+**/*.pdb

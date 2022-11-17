@@ -1,6 +1,6 @@
 本章覆盖有：
 
-- “租借，borrowing”和“生命周期，lefetime”的概念
+- “租借，borrowing”和“生命周期，lifetime”的概念
 - 折磨系统软件的租借典型错误是哪些
 - 如何通过租借checker，Rust的严格语法来避免这种典型错误
 - 如何通过插入语句块来约束租借的作用域(scope)
